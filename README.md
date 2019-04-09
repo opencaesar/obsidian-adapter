@@ -24,12 +24,12 @@ Requirements: java 8, node 8.x,
 MacOS/Linux:
 ```
     cd ecore-adapter
-    cd io.opencaesar.ecore.adapter/
+    cd io.opencaesar.ecore.adapter
     ./gradlew io.opencaesar.ecore2oml:run --args="-i path/to/ecore/folder -o path/to/oml/folder"
 ```
 Windows:
 ```
     cd ecore-adapter
-    cd io.opencaesar.ecore.adapter/
+    cd io.opencaesar.ecore.adapter
     gradlew.bat io.opencaesar.ecore2oml:run --args="-i path/to/ecore/folder -o path/to/oml/folder"
 ```
