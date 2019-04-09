@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/opencaesar/ecore-adapter.svg?branch=master)](https://travis-ci.org/opencaesar/ecore-adapter)
 [ ![Download](https://api.bintray.com/packages/opencaesar/ecore-adapter/io.opencaesar.ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/ecore-adapter/io.opencaesar.ecore2oml/_latestVersion)
 
-An [OML](https://github.com/opencaesar/oml-language-server) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)
+An [OML](https://github.com/opencaesar/oml) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)
 
 ## Clone
 ```
