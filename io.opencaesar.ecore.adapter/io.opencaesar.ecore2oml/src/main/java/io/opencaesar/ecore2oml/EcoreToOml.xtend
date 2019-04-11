@@ -99,11 +99,11 @@ class EcoreToOml {
 				false,
 				false,
 				false)
-			oml.addForwardRelationship(
+			oml.addForwardDirection(
 				reifiedRelationship,
 				forward)
 			if (inverse !== null) {
-				oml.addInverseRelationship(
+				oml.addInverseDirection(
 					reifiedRelationship,
 					inverse)
 			}
@@ -174,11 +174,11 @@ class EcoreToOml {
 			false,
 			false,
 			false)
-		oml.addForwardRelationship(
+		oml.addForwardDirection(
 			reifiedRelationship,
 			eReference.realName+"Of"+source.realName)
 		if (opposite !== null) {
-			oml.addInverseRelationship(
+			oml.addInverseDirection(
 				reifiedRelationship,
 				opposite.realName+"of"+target.realName)
 		}
