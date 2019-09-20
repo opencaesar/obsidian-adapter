@@ -11,16 +11,16 @@ buildscript {
 }
 
 subprojects {
-	group = 'io.opencaesar'
+	group = 'io.opencaesar.ecore'
 	version = '0.1.0'
 	
 	ext.versions = [
-	    oml: '0.1.+',
+	    oml: '0.3.+',
 	]
 
 	repositories {
     	mavenLocal()
-		maven { url 'https://dl.bintray.com/opencaesar/oml' }
+		maven { url 'https://dl.bintray.com/opencaesar/oml-server' }
   		mavenCentral()
 		jcenter()
 	}
