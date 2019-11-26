@@ -14,6 +14,7 @@ import org.apache.log4j.AppenderSkeleton
 import org.apache.log4j.Level
 import org.apache.log4j.LogManager
 import org.eclipse.emf.common.util.URI
+import org.eclipse.emf.ecore.util.EcoreUtil
 import org.eclipse.emf.ecore.xcore.XcoreStandaloneSetup
 import org.eclipse.xtext.resource.XtextResourceSet
 
@@ -26,6 +27,14 @@ class App {
 		required=true, 
 		order=1)
 	package String inputPath = null
+
+	@Parameter(
+		names=#["--owl","-w"], 
+		description="Location of the owl.oml file (Required)",
+		validateWith=OwlPath, 
+		required=true, 
+		order=2)
+	package String owlPath = null
 
 	@Parameter(
 		names=#["--output", "-o"], 
@@ -82,6 +91,7 @@ class App {
 		LOGGER.info("                        S T A R T")
 		LOGGER.info("=================================================================")
 		LOGGER.info("Input Folder= " + inputPath)
+		LOGGER.info("Owl File= " + owlPath)
 		LOGGER.info("Output Folder= " + outputPath)
 
 		val inputFolder = new File(inputPath)
@@ -90,32 +100,52 @@ class App {
 		val injector = new XcoreStandaloneSetup().createInjectorAndDoEMFRegistration();
 		val inputResourceSet = injector.getInstance(XtextResourceSet);
 
-		// start the Oml writer
-		val writer = new OmlWriter
-		writer.start
-
+		// load the input models and resolve their references
 		for (inputFile : inputFiles) {
 			val inputURI = URI.createFileURI(inputFile.absolutePath)
 			val inputResource = inputResourceSet.getResource(inputURI, true)
 			if (inputResource !== null) {
+				EcoreUtil.resolveAll(inputResource)
 				LOGGER.info("Reading: "+inputURI)
-				var relativePath = inputFolder.toURI().relativize(inputFile.toURI()).getPath()
-				relativePath = relativePath.substring(0, relativePath.lastIndexOf('.')+1)+'oml'
-				new EcoreToOml(inputResource, relativePath, writer).run
 			}
 		}
 
-		// load the Oml registries here after the input have been read (since extension "oml" is used by both)
+		// load the Oml registries here after the input have been read
 		OmlStandaloneSetup.doSetup()
 		val outputResourceSet = new XtextResourceSet
 
-		// finish the Oml writer
-		writer.finish(outputResourceSet, outputPath)
+		// create the Oml writer
+		val writer = new OmlWriter(outputResourceSet)
 		
-		// save the output resources
-		for (outputResource : outputResourceSet.resources) {
-			if (outputResource.URI.fileExtension =='oml') {
-				LOGGER.info("Saving: "+outputResource.URI)
+		// load the resource dependencies
+		val owlResourceURI = URI.createFileURI(owlPath)
+		writer.loadDependentResource(owlResourceURI)
+
+		// start the Oml Writer
+		writer.start
+
+		// create the new resources
+		val outputResourceURIs = new ArrayList<URI>
+		for (inputFile : inputFiles) {
+			val inputURI = URI.createFileURI(inputFile.absolutePath)
+			val inputResource = inputResourceSet.getResource(inputURI, true)
+			if (inputResource !== null) {
+				var relativePath = inputFolder.toURI().relativize(inputFile.toURI()).getPath()
+				relativePath = relativePath.substring(0, relativePath.lastIndexOf('.')+1)+'oml'
+				val outputResourceURI = URI.createFileURI(outputPath+'/'+relativePath)
+				new EcoreToOml(inputResource, outputResourceURI, owlResourceURI, writer).run
+				outputResourceURIs.add (outputResourceURI)
+			}
+		}
+
+		// finish the Oml writer
+		writer.finish
+		
+		// save the output resources here instead of calling writer.save in order to log
+		for (outputResourceURI : outputResourceURIs) {
+			if (outputResourceURI.fileExtension =='oml') {
+				LOGGER.info("Saving: "+outputResourceURI)
+				val outputResource = outputResourceSet.getResource(outputResourceURI, false)
 				outputResource.save(Collections.EMPTY_MAP)
 			}
 		}
@@ -159,4 +189,12 @@ class App {
 	  	}
 	}
 	
+	static class OwlPath implements IParameterValidator {
+		override validate(String name, String value) throws ParameterException {
+			val file = new File(value)
+			if (!file.name.endsWith('owl.oml')) {
+				throw new ParameterException("Parameter " + name + " should be a valid owl.oml path");
+			}
+	  	}
+	}
 }

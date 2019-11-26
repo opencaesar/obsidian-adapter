@@ -1,8 +1,8 @@
 package io.opencaesar.ecore2oml
 
-import io.opencaesar.oml.Terminology
-import io.opencaesar.oml.TerminologyKind
+import io.opencaesar.oml.Vocabulary
 import io.opencaesar.oml.util.OmlWriter
+import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.EAttribute
 import org.eclipse.emf.ecore.EClass
 import org.eclipse.emf.ecore.EDataType
@@ -15,11 +15,13 @@ import org.eclipse.emf.ecore.EReference
 import org.eclipse.emf.ecore.EcorePackage
 import org.eclipse.emf.ecore.resource.Resource
 
+import static extension io.opencaesar.oml.util.OmlRead.*
+
 class EcoreToOml {
 
-	static val XSD = "http://www.w3.org/2001/XMLSchema#"
+	static val XSD = "http://www.w3.org/2001/XMLSchema"
+
 	static val OML = "http://opencaesar.io/Oml"
-	
 	static enum Annotation {
 		annotationProperty,
 		reifiedRelationship,
@@ -33,17 +35,20 @@ class EcoreToOml {
 
 	val OmlWriter oml	
 	val Resource inputResource 
-	val String relativePath
+	val URI outputResourceURI
+	val URI owlResourceURI
 	
-	new(Resource inputResource, String relativePath, OmlWriter oml) {
+	
+	new(Resource inputResource, URI outputResourceURI, URI owlResourceURI, OmlWriter oml) {
 		this.inputResource = inputResource
-		this.relativePath = relativePath
+		this.outputResourceURI = outputResourceURI
+		this.owlResourceURI = owlResourceURI
 		this.oml = oml
 	}
 	
 	def run() {
 		val ePackage = inputResource.contents.filter(EPackage).head
-		val terminology = ePackage.toTerminology()
+		val vocabulary = ePackage.toVocabulary()
 		var i = ePackage.eAllContents
 		while (i.hasNext) {
 			val object = i.next
@@ -51,7 +56,7 @@ class EcoreToOml {
 				if(object.isAnnotationSet(Annotation.ignore)) {
 					i.prune
 				} else {
-					object.addToTerminology(terminology)
+					object.addToVocabulary(vocabulary)
 				}
 			}
 		}
@@ -59,36 +64,32 @@ class EcoreToOml {
 
 	// EPackage
 
-	protected def Terminology toTerminology(EPackage ePackage) {
+	protected def Vocabulary toVocabulary(EPackage ePackage) {
 		var iri = ePackage.iri
-		val pefix = ePackage.nsPrefix
-		var i = iri.indexOf('//')
-		if (i === -1) i=0 else i=i+2
-		var j = iri.lastIndexOf('/')
-		if (j === -1) j=iri.length
-		var namespace = iri.substring(i, j)
-		val owlPath = namespace.split("/").map(m|"../").join() + "www.w3.org/2002/07/owl.oml"
-		val terminology = oml.createTerminology(TerminologyKind.OPEN, iri, pefix, namespace+'/'+relativePath)
-		oml.addTerminologyExtension(terminology, owlPath, "owl")
-		terminology
+		val separator = ePackage.separator
+		val pefix = ePackage.prefix
+		val String relativePath = owlResourceURI.deresolve(outputResourceURI, true, true, true).toString
+		val vocabulary = oml.createVocabulary(iri, separator, pefix, outputResourceURI)
+		oml.addVocabularyExtension(vocabulary, relativePath, null)
+		vocabulary
 	}
 
 	// Eobject
 
-	protected dispatch def void addToTerminology(EObject eObject, Terminology terminology) {
+	protected dispatch def void addToVocabulary(EObject eObject, Vocabulary vocabulary) {
 		// no handling by default
 	}
 
 	//EClass
 
-	protected dispatch def void addToTerminology(EClass eClass, Terminology terminology) {
+	protected dispatch def void addToVocabulary(EClass eClass, Vocabulary vocabulary) {
 		val term = if (eClass.isAnnotationSet(Annotation.reifiedRelationship)) {
 			val source = eClass.EAllReferences.findFirst[isAnnotationSet(Annotation.source)]
 			val target = eClass.EAllReferences.findFirst[isAnnotationSet(Annotation.target)]
 			val forward = eClass.getAnnotationValue(Annotation.forward)
 			val inverse = eClass.getAnnotationValue(Annotation.inverse)
-			val reifiedRelationship = oml.addReifiedRelationship(
-				terminology,
+			val reifiedRelationship = oml.addRelationEntity(
+				vocabulary,
 				eClass.realName,
 				source?.EType.iri, 
 				target?.EType.iri, 
@@ -99,47 +100,47 @@ class EcoreToOml {
 				false,
 				false,
 				false)
-			oml.addForwardDirection(
+			oml.addForwardRelation(
 				reifiedRelationship,
 				forward)
 			if (inverse !== null) {
-				oml.addInverseDirection(
+				oml.addInverseRelation(
 					reifiedRelationship,
 					inverse)
 			}
 			reifiedRelationship
 		} else if (eClass.isAbstract) {
-			oml.addAspect(terminology, eClass.realName)
+			oml.addAspect(vocabulary, eClass.realName)
 		} else {
-			oml.addConcept(terminology, eClass.realName)
+			oml.addConcept(vocabulary, eClass.realName)
 		}
-		eClass.ESuperTypes.forEach[oml.addTermSpecializationAxiom(terminology, term, EPackage.iri+name)]
+		eClass.ESuperTypes.forEach[superTerm| oml.addSpecializationAxiom(vocabulary, term.iri, superTerm.iri)]
 	}
 
 	//EEnum
 
-	protected dispatch def void addToTerminology(EEnum eEnum, Terminology terminology) {
-		oml.addEnumerationScalar(terminology, eEnum.realName, eEnum.ELiterals.map[oml.createLiteralString(name, null)])
+	protected dispatch def void addToVocabulary(EEnum eEnum, Vocabulary vocabulary) {
+		oml.addEnumeratedScalar(vocabulary, eEnum.realName, eEnum.ELiterals.map[oml.createQuotedLiteral(name, null, null)])
 	}	
 
 	//EDataType
 
-	protected dispatch def void addToTerminology(EDataType eDataType, Terminology terminology) {
-		oml.addScalar(terminology, eDataType.realName)
+	protected dispatch def void addToVocabulary(EDataType eDataType, Vocabulary vocabulary) {
+		oml.addFacetedScalar(vocabulary, eDataType.realName, null, null, null, null, null, null, null, null, null)
 	}	
 
 	//EAttribute
 
-	protected dispatch def void addToTerminology(EAttribute eAttribute, Terminology terminology) {
+	protected dispatch def void addToVocabulary(EAttribute eAttribute, Vocabulary vocabulary) {
 		val domain = eAttribute.EContainingClass
 		val range = eAttribute.EType
 		if (eAttribute.isAnnotationSet(Annotation.annotationProperty)) {
 			oml.addAnnotationProperty(
-				terminology, 
+				vocabulary, 
 				eAttribute.realName+"Of"+domain.realName)			
 		} else {
 			oml.addScalarProperty(
-				terminology, 
+				vocabulary, 
 				eAttribute.realName+"Of"+domain.realName, 
 				domain.iri, 
 				range.iri, 
@@ -150,7 +151,7 @@ class EcoreToOml {
 
 	//ERference
 	
-	protected dispatch def void addToTerminology(EReference eReference, Terminology terminology) {
+	protected dispatch def void addToVocabulary(EReference eReference, Vocabulary vocabulary) {
 		val source = eReference.EContainingClass
 		val target = eReference.EType
 		val opposite = eReference.EOpposite
@@ -162,8 +163,8 @@ class EcoreToOml {
 		}
 				
 		
-		val reifiedRelationship = oml.addReifiedRelationship(
-			terminology,
+		val reifiedRelationship = oml.addRelationEntity(
+			vocabulary,
 			eReference.realName.toFirstUpper+"Of"+source.realName,
 			source.iri, 
 			target.iri, 
@@ -174,11 +175,11 @@ class EcoreToOml {
 			false,
 			false,
 			false)
-		oml.addForwardDirection(
+		oml.addForwardRelation(
 			reifiedRelationship,
 			eReference.realName+"Of"+source.realName)
 		if (opposite !== null) {
-			oml.addInverseDirection(
+			oml.addInverseRelation(
 				reifiedRelationship,
 				opposite.realName+"of"+target.realName)
 		}
@@ -188,30 +189,45 @@ class EcoreToOml {
 
 	protected dispatch def String getIri(EPackage ePackage) {
 		var nsURI = ePackage.nsURI
-		if (!nsURI.endsWith('#') && !nsURI.endsWith('/')) nsURI += '#'
+		if (nsURI.endsWith('#') || nsURI.endsWith('/')) {
+			nsURI = nsURI.substring(0, nsURI.length-1)
+		}
 		nsURI
 	}	
 
+	protected def String getSeparator(EPackage ePackage) {
+		var nsURI = ePackage.nsURI
+		if (nsURI.endsWith('#') || nsURI.endsWith('/')) {
+			nsURI.substring(nsURI.length-1, nsURI.length-1)
+		} else {
+			"#"
+		}
+	}	
+
+	protected def String getPrefix(EPackage ePackage) {
+		ePackage.nsPrefix
+	}	
+
 	protected dispatch def String getIri(EClass eClass) {
-		eClass.EPackage.iri + eClass.realName
+		eClass.EPackage.iri + eClass.EPackage.separator + eClass.realName
 	}	
 
 	protected dispatch def String getIri(EEnum eEnum) {
-		eEnum.EPackage.iri + eEnum.realName
+		eEnum.EPackage.iri + eEnum.EPackage.separator + eEnum.realName
 	}	
 
 	protected dispatch def String getIri(EDataType eDataType) {
 		switch (eDataType.realName) {
-			case EcorePackage.Literals.ESTRING.name: XSD+'string'
-			case EcorePackage.Literals.EINT.name: XSD+'int'
-			case EcorePackage.Literals.EINTEGER_OBJECT.name: XSD+'int'
-			case EcorePackage.Literals.EBOOLEAN.name: XSD+'boolean'
-			case EcorePackage.Literals.EDOUBLE.name: XSD+'double'
-			case EcorePackage.Literals.EDOUBLE_OBJECT.name: XSD+'double'
-			case EcorePackage.Literals.EFLOAT.name: XSD+'float'
-			case EcorePackage.Literals.EFLOAT_OBJECT.name: XSD+'float'
-			case EcorePackage.Literals.EBIG_DECIMAL.name: XSD+'decimal'
-			default: eDataType.EPackage.iri + eDataType.name 	
+			case EcorePackage.Literals.ESTRING.name: XSD+'#string'
+			case EcorePackage.Literals.EINT.name: XSD+'#int'
+			case EcorePackage.Literals.EINTEGER_OBJECT.name: XSD+'#int'
+			case EcorePackage.Literals.EBOOLEAN.name: XSD+'#boolean'
+			case EcorePackage.Literals.EDOUBLE.name: XSD+'#double'
+			case EcorePackage.Literals.EDOUBLE_OBJECT.name: XSD+'#double'
+			case EcorePackage.Literals.EFLOAT.name: XSD+'#float'
+			case EcorePackage.Literals.EFLOAT_OBJECT.name: XSD+'#float'
+			case EcorePackage.Literals.EBIG_DECIMAL.name: XSD+'#decimal'
+			default: eDataType.EPackage.iri + eDataType.EPackage.separator + eDataType.name 	
 		}
 	}
 	

@@ -24,12 +24,12 @@ Requirements: java 8, node 8.x,
 MacOS/Linux:
 ```
     cd ecore-adapter
-    ./gradlew ecore2oml:run --args="-i path/to/ecore/folder -o path/to/oml/folder"
+    ./gradlew ecore2oml:run --args="-i path/to/ecore/folder -w path/to/owl.oml -o path/to/oml/folder"
 ```
 Windows:
 ```
     cd ecore-adapter
-    gradlew.bat ecore2oml:run --args="-i path/to/ecore/folder -o path/to/oml/folder"
+    gradlew.bat ecore2oml:run --args="-i path/to/ecore/folder -w path/to/owl.oml -o path/to/oml/folder"
 ```
 
 ## Release
