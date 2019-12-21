@@ -15,12 +15,12 @@ subprojects {
 	version = '0.2.0'
 	
 	ext.versions = [
-	    oml: '0.5.+',
+	    oml: '0.5.0',
 	]
 
 	repositories {
     	mavenLocal()
-		maven { url 'https://dl.bintray.com/opencaesar/oml-server' }
+		maven { url 'https://dl.bintray.com/opencaesar/oml' }
   		mavenCentral()
 		jcenter()
 	}
