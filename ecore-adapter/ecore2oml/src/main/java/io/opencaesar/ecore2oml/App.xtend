@@ -23,7 +23,7 @@ class App {
 	@Parameter(
 		names=#["--input","-i"], 
 		description="Location of Ecore input folder (Required)",
-		validateWith=FolderPath, 
+		validateWith=InputFolderPath, 
 		required=true, 
 		order=1)
 	package String inputPath = null
@@ -39,7 +39,7 @@ class App {
 	@Parameter(
 		names=#["--output", "-o"], 
 		description="Location of the OML output folder", 
-		validateWith=FolderPath, 
+		validateWith=OutputFolderPath, 
 		order=2
 	)
 	package String outputPath = "."
@@ -180,11 +180,20 @@ class App {
         	return ""
     }
 
-	static class FolderPath implements IParameterValidator {
+	static class InputFolderPath implements IParameterValidator {
 		override validate(String name, String value) throws ParameterException {
 			val directory = new File(value)
 			if (!directory.isDirectory) {
 				throw new ParameterException("Parameter " + name + " should be a valid folder path");
+			}
+	  	}
+	}
+
+	static class OutputFolderPath implements IParameterValidator {
+		override validate(String name, String value) throws ParameterException {
+			val directory = new File(value)
+			if (!directory.exists) {
+				directory.mkdir
 			}
 	  	}
 	}

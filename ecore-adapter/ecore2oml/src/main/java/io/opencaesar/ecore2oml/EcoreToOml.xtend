@@ -1,5 +1,6 @@
 package io.opencaesar.ecore2oml
 
+import io.opencaesar.oml.SeparatorKind
 import io.opencaesar.oml.Vocabulary
 import io.opencaesar.oml.util.OmlWriter
 import org.eclipse.emf.common.util.URI
@@ -195,12 +196,12 @@ class EcoreToOml {
 		nsURI
 	}	
 
-	protected def String getSeparator(EPackage ePackage) {
+	protected def SeparatorKind getSeparator(EPackage ePackage) {
 		var nsURI = ePackage.nsURI
-		if (nsURI.endsWith('#') || nsURI.endsWith('/')) {
-			nsURI.substring(nsURI.length-1, nsURI.length-1)
+		if (nsURI.endsWith('/')) {
+			SeparatorKind.SLASH
 		} else {
-			"#"
+			SeparatorKind.HASH
 		}
 	}	
 
