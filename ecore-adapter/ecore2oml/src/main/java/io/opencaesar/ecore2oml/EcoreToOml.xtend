@@ -22,15 +22,15 @@ class EcoreToOml {
 
 	static val XSD = "http://www.w3.org/2001/XMLSchema"
 
-	static val OML = "http://opencaesar.io/Oml"
+	static val OML = "http://opencaesar.io/oml"
 	static enum Annotation {
 		annotationProperty,
-		reifiedRelationship,
+		relationEntity,
 		name,
 		source,
 		target,
 		forward,
-		inverse,
+		reverse,
 		ignore
 	} 
 
@@ -84,12 +84,12 @@ class EcoreToOml {
 	//EClass
 
 	protected dispatch def void addToVocabulary(EClass eClass, Vocabulary vocabulary) {
-		val term = if (eClass.isAnnotationSet(Annotation.reifiedRelationship)) {
+		val term = if (eClass.isAnnotationSet(Annotation.relationEntity)) {
 			val source = eClass.EAllReferences.findFirst[isAnnotationSet(Annotation.source)]
 			val target = eClass.EAllReferences.findFirst[isAnnotationSet(Annotation.target)]
 			val forward = eClass.getAnnotationValue(Annotation.forward)
-			val inverse = eClass.getAnnotationValue(Annotation.inverse)
-			val reifiedRelationship = oml.addRelationEntity(
+			val reverse = eClass.getAnnotationValue(Annotation.reverse)
+			val entity = oml.addRelationEntity(
 				vocabulary,
 				eClass.realName,
 				source?.EType.iri, 
@@ -102,14 +102,14 @@ class EcoreToOml {
 				false,
 				false)
 			oml.addForwardRelation(
-				reifiedRelationship,
+				entity,
 				forward)
-			if (inverse !== null) {
-				oml.addInverseRelation(
-					reifiedRelationship,
-					inverse)
+			if (reverse !== null) {
+				oml.addReverseRelation(
+					entity,
+					reverse)
 			}
-			reifiedRelationship
+			entity
 		} else if (eClass.isAbstract) {
 			oml.addAspect(vocabulary, eClass.realName)
 		} else {
@@ -164,7 +164,7 @@ class EcoreToOml {
 		}
 				
 		
-		val reifiedRelationship = oml.addRelationEntity(
+		val entity = oml.addRelationEntity(
 			vocabulary,
 			eReference.realName.toFirstUpper+"Of"+source.realName,
 			source.iri, 
@@ -177,11 +177,11 @@ class EcoreToOml {
 			false,
 			false)
 		oml.addForwardRelation(
-			reifiedRelationship,
+			entity,
 			eReference.realName+"Of"+source.realName)
 		if (opposite !== null) {
-			oml.addInverseRelation(
-				reifiedRelationship,
+			oml.addReverseRelation(
+				entity,
 				opposite.realName+"of"+target.realName)
 		}
 	}
