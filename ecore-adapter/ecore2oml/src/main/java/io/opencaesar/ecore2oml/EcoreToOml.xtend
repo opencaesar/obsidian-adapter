@@ -121,7 +121,7 @@ class EcoreToOml {
 	//EEnum
 
 	protected dispatch def void addToVocabulary(EEnum eEnum, Vocabulary vocabulary) {
-		oml.addEnumeratedScalar(vocabulary, eEnum.realName, eEnum.ELiterals.map[oml.createQuotedLiteral(name, null, null)])
+		oml.addEnumeratedScalar(vocabulary, eEnum.realName, eEnum.ELiterals.map[oml.createQuotedLiteral(vocabulary, name, null, null)])
 	}	
 
 	//EDataType
