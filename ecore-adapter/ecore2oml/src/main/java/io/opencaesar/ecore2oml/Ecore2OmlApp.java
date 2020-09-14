@@ -54,7 +54,7 @@ public class Ecore2OmlApp {
 		required=true, 
 		order=2
 	)
-	private String outputCataloPath;
+	private String outputCatalogPath;
 
 	@Parameter(
 		names= {"-d", "--debug"}, 
@@ -102,7 +102,7 @@ public class Ecore2OmlApp {
 		LOGGER.info("                      Ecore to Oml "+getAppVersion());
 		LOGGER.info("=================================================================");
 		LOGGER.info("Input Folder Path= " + inputFolderPath);
-		LOGGER.info("Output Catalog Path= " + outputCataloPath);
+		LOGGER.info("Output Catalog Path= " + outputCatalogPath);
 
 		final File inputFolder = new File(inputFolderPath);
 		final Collection<File> inputFiles = collectEcoreFiles(inputFolder);
@@ -124,7 +124,7 @@ public class Ecore2OmlApp {
 		OmlStandaloneSetup.doSetup();
 		final XtextResourceSet outputResourceSet = new XtextResourceSet();
 
-		final OmlCatalog catalog = OmlCatalog.create(new URL("file:"+outputCataloPath));
+		final OmlCatalog catalog = OmlCatalog.create(new URL("file:"+outputCatalogPath));
 
 		// create the Oml writer
 		final OmlWriter writer = new OmlWriter(outputResourceSet);
