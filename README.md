@@ -11,29 +11,18 @@ An [OML](https://opencaesar.github.io/oml-spec) adapter for [Ecore](https://www.
 ```
       
 ## Build
-Requirements: java 8, node 8.x, 
+Requirements: java 11
+Mac/Linux
 ```
     cd ecore-adapter
     ./gradlew build
 ```
-
-## Run
-
-MacOS/Linux:
+Windows
 ```
     cd ecore-adapter
-    ./gradlew ecore2oml:run --args="-i path/to/ecore/folder -w path/to/owl.oml -o path/to/oml/folder"
-```
-Windows:
-```
-    cd ecore-adapter
-    gradlew.bat ecore2oml:run --args="-i path/to/ecore/folder -w path/to/owl.oml -o path/to/oml/folder"
+    gradlew.bat build
 ```
 
-## Release
+## [Ecore to OML](ecore-adapter/ecore2oml/README.md) [ ![Download](https://api.bintray.com/packages/opencaesar/ecore-adapter/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/ecore-adapter/ecore2oml/_latestVersion)
 
-Replace \<version\> by the version, e.g., 1.2
-```
-  git tag -a v<version> -m "v<version>"
-  git push origin v<version>
-```
+A tool to translate Ecore models to OML ontologies

@@ -1,1 +1,2 @@
 include 'ecore2oml'
+include 'ecore2oml-gradle'
