@@ -1,12 +1,11 @@
 package io.opencaesar.ecore2oml;
 
 import static io.opencaesar.oml.util.OmlRead.getMembers;
-import static io.opencaesar.oml.util.OmlRead.getNamespace;
 import static org.eclipse.xtext.xbase.lib.IterableExtensions.exists;
 
+import java.util.Collection;
 import java.util.Optional;
 
-import org.eclipse.emf.common.util.TreeIterator;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
@@ -14,6 +13,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.emf.ecore.EDataType;
 import org.eclipse.emf.ecore.EEnum;
+import org.eclipse.emf.ecore.EEnumLiteral;
 import org.eclipse.emf.ecore.EModelElement;
 import org.eclipse.emf.ecore.ENamedElement;
 import org.eclipse.emf.ecore.EObject;
@@ -21,46 +21,54 @@ import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcorePackage;
+import org.eclipse.emf.ecore.util.EcoreSwitch;
 import org.eclipse.xtext.xbase.lib.StringExtensions;
 
+import io.opencaesar.oml.AnnotationProperty;
 import io.opencaesar.oml.Aspect;
+import io.opencaesar.oml.Concept;
+import io.opencaesar.oml.Entity;
+import io.opencaesar.oml.EnumeratedScalar;
+import io.opencaesar.oml.FacetedScalar;
+import io.opencaesar.oml.ForwardRelation;
 import io.opencaesar.oml.Literal;
-import io.opencaesar.oml.RangeRestrictionKind;
+import io.opencaesar.oml.Member;
+import io.opencaesar.oml.Property;
 import io.opencaesar.oml.RelationEntity;
+import io.opencaesar.oml.ReverseRelation;
+import io.opencaesar.oml.ScalarProperty;
 import io.opencaesar.oml.SeparatorKind;
-import io.opencaesar.oml.Term;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlRead;
 import io.opencaesar.oml.util.OmlWriter;
 
-public class Ecore2Oml {
+public class Ecore2Oml extends EcoreSwitch<EObject> {
 	
+	// Namespaces for core vocabularies
 	private static final String XSD = "http://www.w3.org/2001/XMLSchema";
-	private static final String OWL = "http://www.w3.org/2002/07/owl";
-	private static final String RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns";
-	private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema";
 	private static final String DC = "http://purl.org/dc/elements/1.1";
-	private static final String Ecore = "http://www.eclipse.org/emf/2002/Ecore";
+	private static final String RDFS = "http://www.w3.org/2000/01/rdf-schema";
+	private static final String OWL = "http://www.w3.org/2002/07/owl";
 	private static final String OML = "http://opencaesar.io/oml";
-	
+	private static final String Ecore = "http://www.eclipse.org/emf/2002/Ecore";
+
+	// Annotations defined by the Ecore2Oml transform
 	private static enum AnnotationKind {
-		annotationProperty,
-		relationEntity,
+		isAnnotationProperty,
+		isRelationEntity,
+		isRelationSource,
+		isRelationTarget,
 		name,
-		source,
-		target,
-		forward,
-		reverse,
+		forwardName,
+		reverseName,
+		domainName,
 		ignore,
-		duplicate,
-		className,
-		typeName,
-		oppositeName
 	};
 
+	private Vocabulary vocabulary;
 	private final EPackage ePackage;
 	private final URI outputResourceURI;
-	private final OmlWriter oml;	
+	private final OmlWriter oml;
 	
 	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlWriter oml) {
 		this.ePackage = ePackage;
@@ -69,250 +77,249 @@ public class Ecore2Oml {
 	}
 	
 	public void run() {
-		final Vocabulary vocabulary = toVocabulary(ePackage);
-		final TreeIterator<EObject> i = ePackage.eAllContents();
-
-		while (i.hasNext()) {
-			final EObject object = i.next();
-			if (object instanceof EModelElement) {
-				if (isAnnotationSet((EModelElement)object, AnnotationKind.ignore)) {
-					i.prune();
-				} else {
-					addToVocabulary(object, vocabulary);
-				}
-			}
-		}
+		doSwitch(ePackage);
 	}
 
-	// Eobject
-
-	private void addToVocabulary(final EObject eObject, final Vocabulary vocabulary) {
-		if (eObject instanceof EClass) {
-			addToVocabulary((EClass) eObject, vocabulary);
-		} else if (eObject instanceof EEnum) {
-			addToVocabulary((EEnum) eObject, vocabulary);
-		} else if (eObject instanceof EDataType) {
-			addToVocabulary((EDataType) eObject, vocabulary);
-		} else if (eObject instanceof EAttribute) {
-			addToVocabulary((EAttribute) eObject, vocabulary);
-		} else if (eObject instanceof EReference) {
-			addToVocabulary((EReference) eObject, vocabulary);
-		}
-	}		  
-
-	// EPackage
-
-	private Vocabulary toVocabulary(EPackage ePackage) {
-		final String iri = getIri(ePackage);
-		final SeparatorKind separator = getSeparator(ePackage);
-		final String pefix = getPrefix(ePackage);
-		final Vocabulary vocabulary = oml.createVocabulary(outputResourceURI, iri, separator, pefix);
+	@Override
+	public EObject caseEPackage(EPackage object) {
+		final String iri = getIri(object);
+		final SeparatorKind separator = getSeparator(object);
+		final String pefix = getPrefix(object);
+		
+		vocabulary = oml.createVocabulary(outputResourceURI, iri, separator, pefix);
 		oml.addVocabularyExtension(vocabulary, OWL, null);
+		object.getEClassifiers().stream().forEach(c -> doSwitch(c));
+		
 		return vocabulary;
 	}
 
-	//EClass
+	@Override
+	public EObject caseEEnum(EEnum object) {
+		final String name = getMappedName(object);
+		final Literal[] literals = object.getELiterals().stream().map(i -> doSwitch(i)).toArray(Literal[]::new);
 
-	private void addToVocabulary(EClass eClass, Vocabulary vocabulary) {
-		Term term = null;
-		if (isAnnotationSet(eClass, AnnotationKind.relationEntity)) {
-			final Optional<EReference> source = eClass.getEAllReferences().stream().filter(i -> isAnnotationSet(i, AnnotationKind.source)).findFirst();
-			final Optional<EReference> target = eClass.getEAllReferences().stream().filter(i -> isAnnotationSet(i, AnnotationKind.target)).findFirst();
-			final String forward = getAnnotationValue(eClass, AnnotationKind.forward);
-			final String reverse = getAnnotationValue(eClass, AnnotationKind.reverse);
-			final RelationEntity entity = oml.addRelationEntity(
-				vocabulary,
-				getRealName(eClass),
-				(source.isPresent()) ? getIri(source.get().getEType(), vocabulary) : null, 
-				(target.isPresent()) ? getIri(target.get().getEType(), vocabulary) : null, 
-				false,
-				false,
-				false,
-				false,
-				false,
-				false,
-				false);
-			oml.addForwardRelation(
-				entity,
-				forward);
-			if (reverse != null) {
-				oml.addReverseRelation(
-					entity,
-					reverse);
-			}
-			term = entity;
-		} else if (isAspect(eClass)) {
-			term = oml.addAspect(vocabulary, getRealName(eClass));
-		} else {
-			term = oml.addConcept(vocabulary, getRealName(eClass));
-		}
-		if (!eClass.getName().equals(getRealName(eClass))) {
-			oml.addAnnotation(vocabulary, getIri(eClass), RDFS+"#label", oml.createQuotedLiteral(vocabulary, eClass.getName(), null, null));
-		}
-		final Term finalTerm = term;
-		eClass.getESuperTypes().forEach(superTerm -> oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(finalTerm), getIri(superTerm, vocabulary)));
+		final EnumeratedScalar scalar = oml.addEnumeratedScalar(vocabulary, name, literals);
+		addLabelAnnotatiopnIfNeeded(scalar, name);
+		
+		return scalar;
+	}
+	
+	@Override
+	public EObject caseEEnumLiteral(EEnumLiteral object) {
+		return oml.createQuotedLiteral(vocabulary, getMappedName(object), null, null);
 	}
 
-	//EEnum
+	@Override
+	public EObject caseEDataType(EDataType object) {
+		final String name = getMappedName(object);
 
-	private void addToVocabulary(EEnum eEnum, Vocabulary vocabulary) {
-		Literal[] literals = eEnum.getELiterals().stream().map(i -> oml.createQuotedLiteral(vocabulary, i.getName(), null, null)).toArray(Literal[]::new);
-		oml.addEnumeratedScalar(vocabulary, getRealName(eEnum), literals);
-		if (!eEnum.getName().equals(getRealName(eEnum))) {
-			oml.addAnnotation(vocabulary, getIri(eEnum), RDFS+"#label", oml.createQuotedLiteral(vocabulary, eEnum.getName(), null, null));
+		final FacetedScalar scalar = oml.addFacetedScalar(vocabulary, name, null, null, null, null, null, null, null, null, null);
+		addLabelAnnotatiopnIfNeeded(scalar, name);
+		
+		return scalar;
+	}
+
+	@Override
+	public EObject caseEClass(EClass object) {
+		final String name = getMappedName(object);
+
+		Entity entity = null;
+		if (isAnnotationSet(object, AnnotationKind.isRelationEntity)) {
+			entity = caseEClassToRelationEntity(object);
+		} else if (isAspect(object)) {
+			entity = caseEClassToAspect(object);
+		} else {
+			entity = caseEClassToConcept(object);
 		}
-	}	
-
-	//EDataType
-
-	private void addToVocabulary(EDataType eDataType, Vocabulary vocabulary) {
-		oml.addFacetedScalar(vocabulary, getRealName(eDataType), null, null, null, null, null, null, null, null, null);
-		if (!eDataType.getName().equals(getRealName(eDataType))) {
-			oml.addAnnotation(vocabulary, getIri(eDataType), RDFS+"#label", oml.createQuotedLiteral(vocabulary, eDataType.getName(), null, null));
-		}
-	}	
-
-	//EAttribute
-
-	private void addToVocabulary(EAttribute eAttribute, Vocabulary vocabulary) {
-		final EClass domain = eAttribute.getEContainingClass();
-		final EClassifier range = eAttribute.getEType();
-
-		// if this reference is derived
-		if (eAttribute.isDerived()) {
-			return;
-		}
-
-		final String propertyName = getRealName(eAttribute);
-		String domainIri = getIri(domain, vocabulary);
-		String rangeIri = getIri(range, vocabulary);
-	
-		if (isAnnotationSet(eAttribute, AnnotationKind.className)) {
-			final String aspectName = getAnnotationValue(eAttribute, AnnotationKind.className);
-			final String aspectIri = OmlRead.getNamespace(vocabulary)+aspectName;
-			if (!exists(getMembers(vocabulary), i -> i.getName().equals(aspectName))) {
-				final Aspect aspect = oml.addAspect(vocabulary, aspectName);
-				oml.addAnnotation(vocabulary, OmlRead.getIri(aspect), DC+"/source", oml.createQuotedLiteral(vocabulary, "generated", null, null));
+		for (EClass eSuperType : object.getESuperTypes()) {
+			String superIri = getIri(eSuperType);
+			if (superIri != null) {
+				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(entity), superIri);
 			}
-			oml.addSpecializationAxiom(vocabulary, getIri(domain, vocabulary), aspectIri);
+		}
+		addLabelAnnotatiopnIfNeeded(entity, name);
+		object.getEStructuralFeatures().stream().forEach(f -> doSwitch(f));
+		
+		return entity;
+	}
+	
+	private RelationEntity caseEClassToRelationEntity(EClass object) {
+		final String sourceIri = getAnnotatedElementIri(object.getEAllReferences(), AnnotationKind.isRelationSource);
+		final String targetIri = getAnnotatedElementIri(object.getEAllReferences(), AnnotationKind.isRelationTarget);
+		final String forward = getAnnotationValue(object, AnnotationKind.forwardName);
+		final String reverse = getAnnotationValue(object, AnnotationKind.reverseName);
+
+		final RelationEntity entity = oml.addRelationEntity(
+			vocabulary, getMappedName(object),sourceIri, targetIri,
+			false, false, false, false, false, false, false);
+		oml.addForwardRelation(entity, forward);
+		if (reverse != null) {
+			oml.addReverseRelation(entity, reverse);
+		}
+		
+		return entity;
+	}
+
+	private Aspect caseEClassToAspect(EClass object) {
+		return oml.addAspect(vocabulary, getMappedName(object));
+	}
+
+	private Concept caseEClassToConcept(EClass object) {
+		return oml.addConcept(vocabulary, getMappedName(object));
+	}
+
+	@Override
+	public EObject caseEAttribute(EAttribute object) {
+		final String name = getMappedName(object);
+		final EClass domain = object.getEContainingClass();
+		final EDataType range = object.getEAttributeType();
+		final boolean isDerived = object.isDerived();
+		
+		if (isDerived) {
+			return null;
+		}
+		if (isAnnotationSet(object, AnnotationKind.ignore)) {
+			return null;
+		}
+		if (isAnnotationSet(range, AnnotationKind.ignore)) {
+			return null;
+		}
+
+		// find the domain
+		String domainIri = getIri(domain);
+		if (isAnnotationSet(object, AnnotationKind.domainName)) {
+			final String aspectName = getAnnotationValue(object, AnnotationKind.domainName);
+			if (!memberExists(aspectName)) {
+				final Aspect aspect = oml.addAspect(vocabulary, aspectName);
+				addGeneratedAnnotation(aspect);
+			}
+			final String aspectIri = OmlRead.getNamespace(vocabulary)+aspectName;
+			oml.addSpecializationAxiom(vocabulary, getIri(domain), aspectIri);
 			domainIri = aspectIri;
 		}
 		
-		if (isAnnotationSet(eAttribute, AnnotationKind.typeName)) {
-			rangeIri = RDF+"#PlainLiteral";
-			oml.addScalarPropertyRangeRestrictionAxiom(vocabulary, getIri(domain, vocabulary), getNamespace(vocabulary)+propertyName, getIri(range, vocabulary), RangeRestrictionKind.ALL);
-		}
+		// find the range
+		String rangeIri = getIri(range);
 
-		if (!isAnnotationSet(eAttribute, AnnotationKind.duplicate)) {
-			if (isAnnotationSet(eAttribute, AnnotationKind.annotationProperty)) {
-				oml.addAnnotationProperty(
-					vocabulary, 
-					propertyName);		
-			} else {
-				oml.addScalarProperty(
-					vocabulary, 
-					propertyName, 
-					domainIri, 
-					rangeIri, 
-					eAttribute.getLowerBound() == 1);
-			}
-			if (!eAttribute.getName().equals(propertyName)) {
-				oml.addAnnotation(vocabulary, getIri(eAttribute), RDFS+"#label", oml.createQuotedLiteral(vocabulary, eAttribute.getName(), null, null));
-			}
+		// create Property
+		Property property = null;
+		if (isAnnotationSet(object, AnnotationKind.isAnnotationProperty)) {
+			property = caseEAttributeToAnnotationProperty(object);		
+		} else {
+			property = caseEAttributeToScalarProperty(object, domainIri, rangeIri); 
 		}
+		addLabelAnnotatiopnIfNeeded(property, name);
+		
+		return property;
 	}
 
-	//ERference
+	private AnnotationProperty caseEAttributeToAnnotationProperty(EAttribute object) {
+		final String name = getMappedName(object);
+		return oml.addAnnotationProperty(vocabulary, name);		
+	}
 	
-	private void addToVocabulary(EReference eReference, Vocabulary vocabulary) {
-		final EClass source = eReference.getEContainingClass();
-		final EClassifier target = eReference.getEType();
-		final EReference opposite = eReference.getEOpposite();
-		
-		// if this reference is derived
-		if (eReference.isDerived()) {
-			return;
+	private ScalarProperty caseEAttributeToScalarProperty(EAttribute object, String domainIri, String rangeIri) {
+		final String name = getMappedName(object);
+		final boolean isFunctional = object.getUpperBound() == 1;
+		return oml.addScalarProperty(vocabulary, name, domainIri, rangeIri, isFunctional);
+	}
+
+	@Override
+	public EObject caseEReference(EReference object) {
+		final String name = getMappedName(object);
+		final EClass source = object.getEContainingClass();
+		final EClass target = object.getEReferenceType();
+		final EReference opposite = object.getEOpposite();
+		final boolean isDerived = object.isDerived();
+		final boolean isFunctional = object.getUpperBound() == 1;
+		final boolean isInverseFunctional = (opposite != null) && opposite.getLowerBound() == 1;
+
+		if (isDerived) {
+			return null;
+		}
+		if (isAnnotationSet(object, AnnotationKind.ignore)) {
+			return null;
+		}
+		if (isAnnotationSet(target, AnnotationKind.ignore)) {
+			return null;
+		}
+		if (isAnnotationSet(object, AnnotationKind.isRelationSource) || 
+			isAnnotationSet(object, AnnotationKind.isRelationTarget)) {
+			return null;
 		}
 		
-		// if this reference is considered source or target property of a relation entity or if its target is ignored
-		if (isAnnotationSet(eReference, AnnotationKind.source) || 
-			isAnnotationSet(eReference, AnnotationKind.target) ||
-			isAnnotationSet(target, AnnotationKind.ignore)) {
-			return;
-		}
-		
-		// if this reference is singular but has a multi-valued opposite 
-		if (opposite != null &&
-			opposite.getUpperBound() != 1 &&
-			eReference.getUpperBound() == 1) {
-			return;
-		}
-		
-		final String entityName = StringExtensions.toFirstUpper(getRealName(eReference))+"Relation";
-		String sourceIri = getIri(source, vocabulary);
-		String targetIri = getIri(target, vocabulary);
-		final String forwardName = getRealName(eReference);
-		
-		if (isAnnotationSet(eReference, AnnotationKind.className)) {
-			final String aspectName = getAnnotationValue(eReference, AnnotationKind.className);
-			final String aspectIri = getNamespace(vocabulary)+aspectName;
-			if (!exists(getMembers(vocabulary), i -> i.getName().equals(aspectName))) {
+		// the relation entity's source
+		String sourceIri = getIri(source);
+		if (isAnnotationSet(object, AnnotationKind.domainName)) {
+			final String aspectName = getAnnotationValue(object, AnnotationKind.domainName);
+			if (!memberExists(aspectName)) {
 				final Aspect aspect = oml.addAspect(vocabulary, aspectName);
-				oml.addAnnotation(vocabulary, OmlRead.getIri(aspect), DC+"/source", oml.createQuotedLiteral(vocabulary, "generated", null, null));
+				addGeneratedAnnotation(aspect);
 			}
-			oml.addSpecializationAxiom(vocabulary, getIri(source, vocabulary), aspectIri);
+			final String aspectIri = OmlRead.getNamespace(vocabulary)+aspectName;
+			oml.addSpecializationAxiom(vocabulary, getIri(source), aspectIri);
 			sourceIri = aspectIri;
 		}
 
-		if (!isAnnotationSet(eReference, AnnotationKind.duplicate)) {
-			final RelationEntity entity = oml.addRelationEntity(
-				vocabulary,
-				entityName,
-				sourceIri, 
-				targetIri, 
-				eReference.getLowerBound() == 1,
-				(opposite != null) && opposite.getLowerBound() == 1,
-				false,
-				false,
-				false,
-				false,
-				false);
-			oml.addForwardRelation(entity, forwardName);
-			if (!eReference.getName().equals(forwardName)) {
-				oml.addAnnotation(vocabulary, getIri(eReference), RDFS+"#label", oml.createQuotedLiteral(vocabulary, eReference.getName(), null, null));
+		// the relation entity's target
+		String targetIri = getIri(target);
+
+		// the relation entity
+		final String entityName = StringExtensions.toFirstUpper(name)+"Relation";
+		final RelationEntity entity = oml.addRelationEntity(
+			vocabulary, entityName, sourceIri, targetIri, isFunctional, isInverseFunctional,
+			false, false, false, false, false);
+		
+		// the forward relation
+		final String forwardName = name;
+		ForwardRelation forward = oml.addForwardRelation(entity, forwardName);
+		addLabelAnnotatiopnIfNeeded(forward, forwardName);
+
+		// the reverse relation
+		if (opposite != null) {
+			String reverseName = getMappedName(opposite);
+			if (isAnnotationSet(object, AnnotationKind.reverseName)) {
+				reverseName = getAnnotationValue(object, AnnotationKind.reverseName);
 			}
-			if (opposite != null) {
-				 String reverseName = getRealName(opposite);
-				if (isAnnotationSet(eReference, AnnotationKind.oppositeName)) {
-					reverseName = getAnnotationValue(eReference, AnnotationKind.oppositeName);
-				}
-				oml.addReverseRelation(entity, reverseName);
-				if (!opposite.getName().equals(reverseName)) {
-					oml.addAnnotation(vocabulary, getIri(opposite), RDFS+"#label", oml.createQuotedLiteral(vocabulary, opposite.getName(), null, null));
-				}
-			}
+			ReverseRelation reverse = oml.addReverseRelation(entity, reverseName);
+			addLabelAnnotatiopnIfNeeded(reverse, reverseName);
 		}
+		
+		return entity;
 	}
 
-	//--------------------------------------
+	//----------------------------------------------------------------------
 	// Utilities
-	
-	private boolean isAspect(EClass eClass) {
-		return (eClass.isAbstract() || eClass.isInterface()) && eClass.getESuperTypes().stream().allMatch(i -> isAspect(i));
+	//----------------------------------------------------------------------
+
+	private boolean memberExists(String name) {
+		return exists(getMembers(vocabulary), i -> i.getName().equals(name));		
 	}
 	
-	private String getIri(EClassifier element, Vocabulary vocabulary) {
-		final String importedIri = getIri(element.getEPackage());
-		if (!importedIri.equals(vocabulary.getIri()) && !Ecore.equals(importedIri)) {
-			if (vocabulary.getOwnedImports().stream().filter(i -> importedIri.equals(i.getUri())).count() == 0) {
-				oml.addVocabularyExtension(vocabulary, importedIri, null);
-			}
-		}
-		return getIri(element);
+	private boolean isAspect(EClass object) {
+		return (object.eIsProxy() || object.isAbstract() || object.isInterface()) && 
+				object.getESuperTypes().stream().allMatch(i -> isAspect(i));
 	}
 
-	private SeparatorKind getSeparator(EPackage ePackage) {
-		final String nsURI = ePackage.getNsURI();
+	private void addLabelAnnotatiopnIfNeeded(Member object, String mappedName) {
+		String originalName = object.getName();
+		if (!originalName.equals(mappedName)) {
+			Literal label = oml.createQuotedLiteral(vocabulary, originalName, null, null);
+			oml.addAnnotation(vocabulary, OmlRead.getIri(object), RDFS+"#label", label);
+		}
+	}
+	
+	private void addGeneratedAnnotation(Member object) {
+		Literal generated = oml.createQuotedLiteral(vocabulary, "generated", null, null);
+		oml.addAnnotation(vocabulary, OmlRead.getIri(object), DC+"/source", generated);
+	}
+	
+	private String getPrefix(EPackage object) {
+		return object.getNsPrefix();
+	}	
+
+	private SeparatorKind getSeparator(EPackage object) {
+		final String nsURI = object.getNsURI();
 		if (nsURI.endsWith("/")) {
 			return SeparatorKind.SLASH;
 		} else {
@@ -320,50 +327,48 @@ public class Ecore2Oml {
 		}
 	}	
 
-	private String getPrefix(EPackage ePackage) {
-		return ePackage.getNsPrefix();
-	}	
-
-	private String getIri(final ENamedElement eEnum) {
-		if (eEnum instanceof EEnum) {
-			return getIri((EEnum) eEnum);
-		} else if (eEnum instanceof EClass) {
-			return getIri((EClass) eEnum);
-		} else if (eEnum instanceof EDataType) {
-			return getIri((EDataType) eEnum);
-		} else if (eEnum instanceof EStructuralFeature) {
-			return getIri((EStructuralFeature) eEnum);
-		} else if (eEnum instanceof EPackage) {
-			return getIri((EPackage) eEnum);
+	private String getIri(final ENamedElement object) {
+		if (object instanceof EPackage) {
+			return getIri((EPackage) object);
+		} else if (object instanceof EClass) {
+			return getIri((EClass) object);
+		} else if (object instanceof EEnum) {
+			return getIri((EEnum) object);
+		} else if (object instanceof EDataType) {
+			return getIri((EDataType) object);
+		} else if (object instanceof EStructuralFeature) {
+			return getIri((EStructuralFeature) object);
 		}
 		return null;
 	}
 
-	private String getIri(EPackage ePackage) {
-		String nsURI = ePackage.getNsURI();
+	private String getIri(EPackage object) {
+		String nsURI = object.getNsURI();
 		if (nsURI.endsWith("#") || nsURI.endsWith("/")) {
 			nsURI = nsURI.substring(0, nsURI.length()-1);
 		}
 		return nsURI;
 	}	
 
-	private String getIri(EClass eClass) {
-		final EPackage ePackage = eClass.getEPackage();  
-		return getIri(ePackage)+ getSeparator(ePackage)+ getRealName(eClass);
+	private String getIri(EClass object) {
+		final EPackage ePackage = object.getEPackage();  
+		if (ePackage != null) {
+			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object);
+		}
+		return null;
 	}	
 
-	private String getIri(EEnum eEnum) {
-		final EPackage ePackage = eEnum.getEPackage();  
-		return getIri(ePackage)+ getSeparator(ePackage)+ getRealName(eEnum);
+	private String getIri(EEnum object) {
+		final EPackage ePackage = object.getEPackage();  
+		if (ePackage != null) {
+			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object);
+		}
+		return null;
 	}	
 
-	private String getIri(EStructuralFeature eFeature) {
-		final EPackage ePackage = eFeature.getEContainingClass().getEPackage();  
-		return getIri(ePackage)+ getSeparator(ePackage)+ getRealName(eFeature);
-	}	
-
-	private String getIri(EDataType eDataType) {
-		final String name = getRealName(eDataType);
+	private String getIri(EDataType object) {
+		final String name = getMappedName(object);
+		
 		if (EcorePackage.Literals.ESTRING.getName().equals(name))
 			return XSD+"#string";
 		if (EcorePackage.Literals.EINT.getName().equals(name))
@@ -382,24 +387,48 @@ public class Ecore2Oml {
 			return XSD+"#float";
 		if (EcorePackage.Literals.EBIG_DECIMAL.getName().equals(name))
 			return XSD+"#decimal";
-		return getIri(eDataType.getEPackage())+getSeparator(eDataType.getEPackage())+eDataType.getName(); 	
-	}
-	
-	private String getRealName(ENamedElement element) {
-		return getAnnotationValue(element, AnnotationKind.name, element.getName());
-	}
-	
-	private boolean isAnnotationSet(EModelElement element, AnnotationKind kind) {
-		final Optional<EAnnotation> annotation = element.getEAnnotations().stream().
-				filter(i -> OML.equals(i.getSource())).findFirst();
-			if (annotation.isPresent()) {
-				return annotation.get().getDetails().containsKey(kind.toString());
-			}
-			return false;
+
+		final EPackage ePackage = object.getEPackage();  
+		if (ePackage != null) {
+			return qualify(getIri(ePackage)+getSeparator(ePackage)+object.getName(), object);
+		}
+		return null;
 	}
 
-	private String getAnnotationValue(EModelElement element, AnnotationKind kind) {
-		final Optional<EAnnotation> annotation = element.getEAnnotations().stream().
+	private String getIri(EStructuralFeature object) {
+		final EPackage ePackage = object.getEContainingClass().getEPackage();  
+		return getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object);
+	}	
+
+	private String qualify(String iri, EClassifier object) {
+		final String vocabularyIri = getIri(object.getEPackage());
+		if (!vocabularyIri.equals(vocabulary.getIri()) && !Ecore.equals(vocabularyIri)) {
+			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getUri().equals(vocabularyIri))) {
+				oml.addVocabularyExtension(vocabulary, vocabularyIri, null);
+			}
+		}
+		return iri;
+	}
+
+	private String getMappedName(ENamedElement object) {
+		return getAnnotationValue(object, AnnotationKind.name, object.getName());
+	}
+
+	private <T extends ENamedElement> String getAnnotatedElementIri(Collection<T> coll, AnnotationKind kind) {
+		final Optional<T> object = coll.stream().filter(i -> isAnnotationSet(i, kind)).findFirst();
+		if (object.isPresent()) {
+			return getIri(object.get());
+		}
+		return null;
+	}
+	
+	private String getAnnotationValue(EModelElement object, AnnotationKind kind, String defaultValue) {
+		final String value = getAnnotationValue(object, kind);
+		return (value != null) ? value : defaultValue;
+	}
+
+	private String getAnnotationValue(EModelElement object, AnnotationKind kind) {
+		final Optional<EAnnotation> annotation = object.getEAnnotations().stream().
 			filter(i -> OML.equals(i.getSource())).findFirst();
 		if (annotation.isPresent()) {
 			return annotation.get().getDetails().get(kind.toString());
@@ -407,9 +436,7 @@ public class Ecore2Oml {
 		return null;
 	}
 
-	private String getAnnotationValue(EModelElement element, AnnotationKind kind, String defaultValue) {
-		final String value = getAnnotationValue(element, kind);
-		return (value != null) ? value : defaultValue;
+	private boolean isAnnotationSet(EModelElement object, AnnotationKind kind) {
+		return getAnnotationValue(object, kind) != null;
 	}
-
 }
