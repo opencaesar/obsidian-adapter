@@ -124,7 +124,8 @@ public class Ecore2OmlApp {
 		OmlStandaloneSetup.doSetup();
 		final XtextResourceSet outputResourceSet = new XtextResourceSet();
 
-		final OmlCatalog catalog = OmlCatalog.create(new URL("file:"+outputCatalogPath));
+		final URL catalogURL = new File(outputCatalogPath).toURI().toURL();
+		final OmlCatalog catalog = OmlCatalog.create(catalogURL);
 
 		// create the Oml writer
 		final OmlWriter writer = new OmlWriter(outputResourceSet);
