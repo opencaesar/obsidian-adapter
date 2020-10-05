@@ -137,7 +137,7 @@ public class EReferenceHandler implements ConversionHandler{
 					   RangeRestrictionKind.ALL);
 		}
 		
-		handleCardinality(vocabulary, oml, object, sourceIri, isFunctional, refIRI, rangeIRI);
+		handleCardinality(vocabulary, oml, object, sourceIri, refIRI, rangeIRI);
 		handleNamedElementDoc(object, entity,oml,vocabulary);
 		handleSubsets(object, entity,oml,vocabulary,collections);
 		return entity;
@@ -203,11 +203,12 @@ public class EReferenceHandler implements ConversionHandler{
 	}
 
 	private void handleCardinality(Vocabulary vocabulary, OmlWriter oml, EReference object, String sourceIri,
-			final boolean isFunctional, String refIRI, String rangeIRI) {
-		if (!isFunctional && object.getUpperBound()!=-1) {
-			// TODO: remove the range IRI
+			String refIRI, String rangeIRI) {
+		if (object.getUpperBound()>1) {
 			oml.addRelationCardinalityRestrictionAxiom(vocabulary, sourceIri,  refIRI,
 					CardinalityRestrictionKind.MAX, object.getUpperBound(), rangeIRI);
+		}
+		if (object.getLowerBound()> 0) {
 			oml.addRelationCardinalityRestrictionAxiom(vocabulary, sourceIri,  refIRI,
 					CardinalityRestrictionKind.MIN, object.getLowerBound(), rangeIRI);
 		}

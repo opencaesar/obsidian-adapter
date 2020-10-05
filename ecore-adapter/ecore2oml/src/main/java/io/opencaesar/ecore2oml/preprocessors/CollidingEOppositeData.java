@@ -46,14 +46,16 @@ public class CollidingEOppositeData {
 	}
 
 	private boolean pick(EReference[] ret, EReference ref, EReference replacment) {
-		if (ref.isContainer() != ref.getEOpposite().isContainer()) {
+		if (ref.getEOpposite() == null) {
+			return true;
+		} else if (ref.isContainer() != ref.getEOpposite().isContainer()) {
 			if (ref.getEOpposite().isContainer()) {
 				ret[0] = replacment;
 			}
 			return true;
 		} else if (ref.getUpperBound() != ref.getEOpposite().getUpperBound()) {
-			if (ref.getEOpposite().getUpperBound() != -1
-					&& (ref.getUpperBound() == -1 || ref.getUpperBound() > ref.getEOpposite().getUpperBound())) {
+			if (ref.getEOpposite().getUpperBound() > 0
+					&& (ref.getUpperBound() < 0 || ref.getUpperBound() > ref.getEOpposite().getUpperBound())) {
 				ret[0] = replacment;
 			}
 			return true;

@@ -62,10 +62,11 @@ public class EAttributeHandler implements ConversionHandler {
 						OmlRead.getIri(collisionInfo.baseProperty), rangeIri, RangeRestrictionKind.ALL);
 
 			}
-			if (!isFunctional && object.getUpperBound()!=-1) {
-				// TODO: remove the range IRI
+			if (object.getUpperBound()>1) {
 				oml.addScalarPropertyCardinalityRestrictionAxiom(vocabulary, containerIRI, attribuiteIRI,
 						CardinalityRestrictionKind.MAX, object.getUpperBound(), rangeIRI);
+			}
+			if (object.getLowerBound()> 0) {
 				oml.addScalarPropertyCardinalityRestrictionAxiom(vocabulary, containerIRI, attribuiteIRI,
 						CardinalityRestrictionKind.MIN, object.getLowerBound(), rangeIRI);
 			}

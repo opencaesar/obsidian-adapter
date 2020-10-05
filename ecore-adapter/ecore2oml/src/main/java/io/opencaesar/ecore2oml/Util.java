@@ -1,10 +1,8 @@
 package io.opencaesar.ecore2oml;
 
 import static io.opencaesar.ecore2oml.NameSpaces.DC;
-import static io.opencaesar.ecore2oml.NameSpaces.Ecore;
 import static io.opencaesar.ecore2oml.NameSpaces.OML;
 import static io.opencaesar.ecore2oml.NameSpaces.RDFS;
-import static io.opencaesar.ecore2oml.NameSpaces.XSD;
 import static io.opencaesar.oml.util.OmlRead.getMembers;
 import static org.eclipse.xtext.xbase.lib.IterableExtensions.exists;
 
@@ -19,7 +17,6 @@ import org.eclipse.emf.ecore.EModelElement;
 import org.eclipse.emf.ecore.ENamedElement;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EStructuralFeature;
-import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.xtext.xbase.lib.StringExtensions;
 
 import io.opencaesar.oml.Literal;
@@ -155,42 +152,13 @@ public class Util {
 		return null;
 	}	
 
-	public static String getIri(EEnum object, Vocabulary vocabulary, OmlWriter oml) {
+	public static String getIri(EDataType object, Vocabulary vocabulary, OmlWriter oml) {
 		final EPackage ePackage = object.getEPackage();  
 		if (ePackage != null) {
 			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml);
 		}
 		return null;
 	}	
-
-	static public String getIri(EDataType object, Vocabulary vocabulary, OmlWriter oml) {
-		final String name = getMappedName(object);
-		
-		if (EcorePackage.Literals.ESTRING.getName().equals(name))
-			return XSD+"#string";
-		if (EcorePackage.Literals.EINT.getName().equals(name))
-			return XSD+"#int";
-		if (EcorePackage.Literals.EINTEGER_OBJECT.getName().equals(name))
-			return XSD+"#int";
-		if (EcorePackage.Literals.EBOOLEAN.getName().equals(name))
-			return XSD+"#boolean";
-		if (EcorePackage.Literals.EDOUBLE.getName().equals(name))
-			return XSD+"#double";
-		if (EcorePackage.Literals.EDOUBLE_OBJECT.getName().equals(name))
-			return XSD+"#double";
-		if (EcorePackage.Literals.EFLOAT.getName().equals(name))
-			return XSD+"#float";
-		if (EcorePackage.Literals.EFLOAT_OBJECT.getName().equals(name))
-			return XSD+"#float";
-		if (EcorePackage.Literals.EBIG_DECIMAL.getName().equals(name))
-			return XSD+"#decimal";
-
-		final EPackage ePackage = object.getEPackage();  
-		if (ePackage != null) {
-			return qualify(getIri(ePackage)+getSeparator(ePackage)+object.getName(), object,vocabulary,oml);
-		}
-		return null;
-	}
 
 	static public String getIri(EStructuralFeature object) {
 		final EPackage ePackage = object.getEContainingClass().getEPackage();  
@@ -199,7 +167,7 @@ public class Util {
 
 	static private String qualify(String iri, EClassifier object, Vocabulary vocabulary, OmlWriter oml) {
 		final String vocabularyIri = getIri(object.getEPackage());
-		if (!vocabularyIri.equals(vocabulary.getIri()) && !Ecore.equals(vocabularyIri)) {
+		if (!vocabularyIri.equals(vocabulary.getIri())) {
 			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getUri().equals(vocabularyIri))) {
 				oml.addVocabularyExtension(vocabulary, vocabularyIri, null);
 			}

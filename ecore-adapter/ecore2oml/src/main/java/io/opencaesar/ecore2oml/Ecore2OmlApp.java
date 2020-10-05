@@ -19,9 +19,11 @@ import org.eclipse.emf.common.util.TreeIterator;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
+import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xcore.XcoreStandaloneSetup;
+import org.eclipse.emf.ecore.xml.type.XMLTypePackage;
 import org.eclipse.xtext.resource.XtextResourceSet;
 
 import com.beust.jcommander.IParameterValidator;
@@ -154,6 +156,15 @@ public class Ecore2OmlApp {
 			}
 		}
 
+		// create Ecore default packages
+		final EPackage[] defaultEPackages = { EcorePackage.eINSTANCE, XMLTypePackage.eINSTANCE };
+		for (EPackage ePackage : defaultEPackages) {
+			String ecoreRelativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OML_EXTENSION;
+			URI ecoreResourceURI = URI.createURI(ecoreRelativePath);
+			new Ecore2Oml(ePackage, ecoreResourceURI, writer).run();
+			outputResourceURIs.add (ecoreResourceURI);
+		}
+		
 		// finish the Oml writer
 		writer.finish();
 		

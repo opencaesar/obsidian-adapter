@@ -18,8 +18,7 @@ import io.opencaesar.oml.util.OmlWriter;
 public class EDataTypeHandler implements ConversionHandler{
 
 	@Override
-	public EObject convert(EObject eObject, Vocabulary vocabulary, OmlWriter oml,
-			Map<CollectionKind, Object> collections) {
+	public EObject convert(EObject eObject, Vocabulary vocabulary, OmlWriter oml, Map<CollectionKind, Object> collections) {
 		EDataType object = (EDataType)eObject;
 		final String name = Util.getMappedName(object);
 		final FacetedScalar scalar = oml.addFacetedScalar(vocabulary, name, null, null, null, null, null, null, null, null, null);
@@ -34,11 +33,11 @@ public class EDataTypeHandler implements ConversionHandler{
 			case "Real":
 				base = "double";
 				break;
-			case "String":
-				base = "string";
-				break;
 			case "UnlimitedNatural":
 				base = "integer";
+				break;
+			default:
+				base = "string";
 				break;
 		}
 		String baseIRI = IRICONSTANTS.XSD_IRI + base;

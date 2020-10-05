@@ -110,21 +110,23 @@ public class EClassHandler implements ConversionHandler {
 		int oLower = original.getLowerBound();
 		String entityIRI = OmlRead.getIri(entity);
 		String relationOrPropIRI = getIri(original, vocabulary, oml);
-		if (upper != oUpper || lower != oLower) {
-			// cardinality restriction
+		if (upper != oUpper) {
 			if (element instanceof EReference) {
 				oml.addRelationCardinalityRestrictionAxiom(vocabulary, entityIRI, relationOrPropIRI,
 						CardinalityRestrictionKind.MAX, upper, null);
+			} else {
+				oml.addScalarPropertyCardinalityRestrictionAxiom(vocabulary, entityIRI, relationOrPropIRI,
+						CardinalityRestrictionKind.MAX, upper, null);
+			}
+		}
+		if (lower != oLower) {
+			if (element instanceof EReference) {
 				oml.addRelationCardinalityRestrictionAxiom(vocabulary, entityIRI, relationOrPropIRI,
 						CardinalityRestrictionKind.MIN, lower, null);
 			}else {
 				oml.addScalarPropertyCardinalityRestrictionAxiom(vocabulary, entityIRI, relationOrPropIRI,
-						CardinalityRestrictionKind.MAX, upper, null);
-				oml.addScalarPropertyCardinalityRestrictionAxiom(vocabulary, entityIRI, relationOrPropIRI,
 						CardinalityRestrictionKind.MIN, lower, null);
-				
 			}
-
 		}
 		Object defaultValue = element.getDefaultValue();
 		Object oDefaultValue = original.getDefaultValue();
