@@ -4,9 +4,6 @@ install: true
 jdk:
 - openjdk11
 
-before_script:
-- cd ecore-adapter
-
 script:
   - ./gradlew build
 
@@ -17,5 +14,4 @@ deploy:
     dry-run: false
     on:
       tags: true
-      repo: opencaesar/ecore-adapter
       branch: master

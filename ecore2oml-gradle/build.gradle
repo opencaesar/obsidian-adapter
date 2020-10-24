@@ -1,0 +1,8 @@
+ext.title = 'Ecore to Oml Gradle'
+description = 'A gradle interface to run Ecore to Oml'
+
+dependencies {
+	implementation gradleApi()
+    implementation project (':ecore2oml')
+    implementation 'com.google.code.gson:gson:2.8.5'
+}
