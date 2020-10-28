@@ -107,7 +107,7 @@ public class Util {
 	public static void addTitle(ENamedElement object, AnnotatedElement element, OmlWriter oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(object.getName());
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
-		oml.addAnnotation(element, RDFS+"#label", label);
+		oml.addAnnotation(vocabulary, element, RDFS+"#label", label);
 	}
 	
 	// TODO : may be user org.apache.commons.lang.StringUtils.splitByCharacterTypeCamelCase instead
@@ -205,7 +205,7 @@ public class Util {
 			String val = genModelAnnotation.getDetails().get(DOCUMENTATION);
 			if (val!=null && !val.isBlank()) {
 				Literal value = oml.createQuotedLiteral(vocabulary, val, null, null);
-				oml.addAnnotation(object, DC+"#description", value);
+				oml.addAnnotation(vocabulary, object, DC+"#description", value);
 			}
 		}
 	}
