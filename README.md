@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/opencaesar/ecore-adapter.svg?branch=master)](https://travis-ci.org/opencaesar/ecore-adapter)
 
-An [OML](https://opencaesar.github.io/oml-spec) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)
+An [OML](https://opencaesar.github.io/oml) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)
 
 ## Clone
 ```
@@ -23,4 +23,4 @@ Windows
 
 ## [Ecore to OML](ecore2oml/README.md) [ ![Download](https://api.bintray.com/packages/opencaesar/ecore-adapter/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/ecore-adapter/ecore2oml/_latestVersion)
 
-A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml-spec) vocabularies
+A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml) vocabularies
