@@ -107,7 +107,11 @@ public class Util {
 	public static void addTitle(ENamedElement object, AnnotatedElement element, OmlWriter oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(object.getName());
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
-		oml.addAnnotation(vocabulary, element, RDFS+"#label", label);
+		if (element instanceof Vocabulary) {
+			oml.addAnnotation((Vocabulary)element, RDFS+"#label", label);
+		} else {
+			oml.addAnnotation(vocabulary, element, RDFS+"#label", label);
+		}
 	}
 	
 	// TODO : may be user org.apache.commons.lang.StringUtils.splitByCharacterTypeCamelCase instead
