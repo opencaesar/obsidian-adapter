@@ -23,9 +23,11 @@ public class SemanticFlags {
 
 	public static void init(List<URISemanticFlags> flags) {
 		synchronized (SemanticFlags.class) {
-			for (URISemanticFlags iriFlags : flags) {
-				Set<SemanticFlagKind> flagsSet = new HashSet<>(iriFlags.onFlags);
-				_instance.iriToFlags.put(iriFlags.iri, flagsSet);
+			if (flags!=null) {
+				for (URISemanticFlags iriFlags : flags) {
+					Set<SemanticFlagKind> flagsSet = new HashSet<>(iriFlags.onFlags);
+					_instance.iriToFlags.put(iriFlags.iri, flagsSet);
+				}
 			}
 		}
 	}

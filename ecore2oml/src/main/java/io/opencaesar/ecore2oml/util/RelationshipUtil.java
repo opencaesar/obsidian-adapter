@@ -28,8 +28,10 @@ public class RelationshipUtil {
 		synchronized (RelationshipUtil.class) {
 			for (Relationship relation : relationships) {
 				_instance.addRelationship(relation.root, relation);
-				for (OverrideInfo override : relation.overrides) {
-					_instance.overrides.put(override.iri, override);
+				if (relation.overrides!=null) {
+					for (OverrideInfo override : relation.overrides) {
+						_instance.overrides.put(override.iri, override);
+					}
 				}
 			}
 

@@ -30,7 +30,7 @@ public class Ecore2OmlTask extends DefaultTask {
         }
         if (optionsFilePath != null) {
 		    args.add("-op");
-		    args.add(outputCatalogPath);
+		    args.add(optionsFilePath);
         }
 	    if (debug) {
 		    args.add("-d");

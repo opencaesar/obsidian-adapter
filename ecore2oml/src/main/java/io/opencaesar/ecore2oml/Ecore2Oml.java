@@ -50,8 +50,6 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		preProcessorsRegistery.add(ConversionPreProcessing.class);
 	}
 	
-
-
 	private Vocabulary vocabulary;
 	private final EPackage ePackage;
 	private final URI outputResourceURI;

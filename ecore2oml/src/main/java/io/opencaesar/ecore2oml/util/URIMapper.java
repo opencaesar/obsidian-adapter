@@ -21,8 +21,10 @@ public class URIMapper {
 
 	public static void init(List<URIMapping> uriMapping) {
 		synchronized (URIMapper.class) {
-			for (URIMapping mapping : uriMapping) {
-				_instance.mappedIRIs.put(mapping.NSURI, mapping.value);
+			if (uriMapping!=null) {
+				for (URIMapping mapping : uriMapping) {
+					_instance.mappedIRIs.put(mapping.NSURI, mapping.value);
+				}
 			}
 		}
 	}

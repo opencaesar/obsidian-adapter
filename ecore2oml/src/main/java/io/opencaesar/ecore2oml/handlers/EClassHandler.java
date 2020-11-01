@@ -48,12 +48,12 @@ public class EClassHandler implements ConversionHandler {
 		boolean isRelationship = RelationshipUtil.getInstance().isRelationship(object, oml, vocabulary,visitor);
 		if (isRelationship) {
 			srcAndTarget =  getSourceAndTaregt( object, oml, vocabulary,visitor);
-			LOGGER.debug(getIri(object, vocabulary, oml,visitor) + " Might be Relationship: " + srcAndTarget.source.getName() + " => " + srcAndTarget.target.getName());
-			if (srcAndTarget.source.getUpperBound()!=1 ||
+			LOGGER.info(getIri(object, vocabulary, oml,visitor) + "Relationship: " + srcAndTarget.source.getName() + " => " + srcAndTarget.target.getName());
+			/*if (srcAndTarget.source.getUpperBound()!=1 ||
 				srcAndTarget.target.getUpperBound()!=1) {
 				isRelationship = false;
 				LOGGER.debug(getIri(object, vocabulary, oml,visitor) + " Not  Relationship");
-			}
+			}*/
 		}
 		EAnnotation annotation = Util.getAnnotation(object, DUPLICATES);
 		boolean isDuplicate = annotation == null ? false : true;
