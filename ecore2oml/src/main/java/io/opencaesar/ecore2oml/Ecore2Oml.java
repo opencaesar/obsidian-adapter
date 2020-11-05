@@ -34,8 +34,9 @@ import io.opencaesar.ecore2oml.handlers.EReferenceHandler;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 import io.opencaesar.ecore2oml.preprocessors.ConversionPreProcessing;
 import io.opencaesar.ecore2oml.preprocessors.EAttributeConversionParticipant;
-import io.opencaesar.ecore2oml.preprocessors.EPackageConversionParticipant;
-import io.opencaesar.ecore2oml.preprocessors.EReferencConversionParticipant;
+import io.opencaesar.ecore2oml.preprocessors.participants.EClassConversionParticipant;
+import io.opencaesar.ecore2oml.preprocessors.participants.EPackageConversionParticipant;
+import io.opencaesar.ecore2oml.preprocessors.participants.EReferencConversionParticipant;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlWriter;
 
@@ -60,7 +61,6 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	private Logger LOGGER = LogManager.getLogger(Ecore2Oml.class);
 	
 	private Map<CollectionKind,Object> collections = new HashMap<>();
-	private Set<EObject> converted = new HashSet<>();
 	
 	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlWriter oml) {
 		this.ePackage = ePackage;
@@ -89,15 +89,6 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		return dependency;
 	}
 	
-	public void addConverted(EObject obj) {
-		converted.add(obj);
-	}
-	
-	public boolean isConverted(EObject obj) {
-		return converted.contains(obj);
-	}
-	
-
 	private void handlersPostProcess() {
 		Set<Entry<Integer, ConversionHandler>> entries = handlers.entrySet();
 		for (Entry<Integer, ConversionHandler> entry : entries) {
@@ -157,6 +148,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 				pre.addParticipant(EcorePackage.EATTRIBUTE, EAttributeConversionParticipant.class);
 				pre.addParticipant(EcorePackage.EPACKAGE, EPackageConversionParticipant.class);
 				pre.addParticipant(EcorePackage.EREFERENCE, EReferencConversionParticipant.class);
+				pre.addParticipant(EcorePackage.ECLASS, EClassConversionParticipant.class);
 			} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException | NoSuchMethodException | SecurityException e) {
 				LOGGER.error("Failed to create instance of ConversionPreProcessing");

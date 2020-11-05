@@ -177,7 +177,15 @@ public class Util {
 			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
 		}
 		return null;
-	}	
+	}
+	
+	public static String getLocalEClassIri(EClass eClass) {
+		final EPackage ePackage = eClass.getEPackage();  
+		if (ePackage != null) {
+			return getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(eClass);
+		}
+		return null;
+	}
 
 	public static String getIri(EDataType object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml e2o) {
 		final EPackage ePackage = object.getEPackage();  

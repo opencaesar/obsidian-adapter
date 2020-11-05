@@ -8,6 +8,7 @@ import static io.opencaesar.ecore2oml.util.Util.getMappedName;
 import static io.opencaesar.ecore2oml.util.Util.isAnnotationSet;
 import static io.opencaesar.ecore2oml.util.Util.memberExists;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -48,11 +49,13 @@ public class EReferenceHandler implements ConversionHandler{
 		EReference object = (EReference)eObject;
 		final String name = getMappedName(object);
 		final String entityName =  getRelationShipName(object);
-		if (FilterUtil.shouldFilter(object) || visitor.isConverted(object)) {
+		@SuppressWarnings("unchecked")
+		Set<EReference> skipSet = (Set<EReference>)collections.get(CollectionKind.SKIP_EREFERENCES);
+		if (skipSet==null) skipSet = Collections.emptySet();
+		if (FilterUtil.shouldFilter(object)  || skipSet.contains(object)) {
 			addFiltered(object,collections);
 			return null;
 		}
-		
 		
 		String sourceIri = getIri(object.getEContainingClass(), vocabulary, oml,visitor);
 		String targetIri = getIri(object.getEReferenceType(), vocabulary, oml,visitor);

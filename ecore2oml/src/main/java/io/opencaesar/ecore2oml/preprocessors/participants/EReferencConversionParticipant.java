@@ -1,4 +1,4 @@
-package io.opencaesar.ecore2oml.preprocessors;
+package io.opencaesar.ecore2oml.preprocessors.participants;
 
 import static io.opencaesar.ecore2oml.util.Util.getMappedName;
 
@@ -13,6 +13,10 @@ import org.apache.log4j.Logger;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 
+import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
+import io.opencaesar.ecore2oml.preprocessors.CollidingEOppositeData;
+import io.opencaesar.ecore2oml.preprocessors.RefCollisionInfo;
+import io.opencaesar.ecore2oml.preprocessors.TwoERefKey;
 import io.opencaesar.ecore2oml.util.FilterUtil;
 
 public class EReferencConversionParticipant extends ConversionParticipant {
@@ -72,7 +76,7 @@ public class EReferencConversionParticipant extends ConversionParticipant {
 		int before = collInfo.size();
 		Set<TwoERefKey> cleanMe = new HashSet<>();
 		collInfo.finish();
-		Set<Entry<TwoERefKey, Set<EReference>>> enteries = collInfo.forward.entrySet();
+		Set<Entry<TwoERefKey, Set<EReference>>> enteries = collInfo.getForward().entrySet();
 		for (Entry<TwoERefKey, Set<EReference>> entry : enteries) {
 			TwoERefKey key = entry.getKey();
 			Set<EReference> val = entry.getValue();
@@ -84,7 +88,7 @@ public class EReferencConversionParticipant extends ConversionParticipant {
 		}
 
 		for (TwoERefKey key : cleanMe) {
-			collInfo.forward.remove(key);
+			collInfo.getForward().remove(key);
 		}
 		LOGGER.debug("Size befoe = " + before + ", Size after = " + collInfo.size());
 

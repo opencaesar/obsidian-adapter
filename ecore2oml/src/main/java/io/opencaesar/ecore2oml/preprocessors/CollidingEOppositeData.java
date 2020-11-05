@@ -14,13 +14,19 @@ import org.eclipse.emf.ecore.EReference;
 import io.opencaesar.ecore2oml.util.Util;
 
 public class CollidingEOppositeData {
-	Map<TwoERefKey, Set<EReference>> forward = new HashMap<>();
+	
+	private Map<TwoERefKey, Set<EReference>> forward = new HashMap<>();
+	
 	private Set<EReference> toSkip = new HashSet<>();
 	private Map<EReference, EReference> eRefToReplacement = new HashMap<EReference, EReference>();
 	private static final String SUBSETS = "subsets";
 
 	public CollidingEOppositeData() {
 
+	}
+	
+	public Map<TwoERefKey, Set<EReference>> getForward() {
+		return this.forward;
 	}
 
 	public boolean shouldSkip(EReference eRef) {

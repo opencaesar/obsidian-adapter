@@ -38,12 +38,12 @@ public class RelationshipUtil {
 		}
 	}
 
-	public boolean isRelationship(EClass toCheck, OmlWriter oml, Vocabulary voc, Ecore2Oml e2o) {
+	public boolean isRelationship(EClass toCheck) {
 		String[] matched = new String[1];
 		Relationship[] matchedInfo = new Relationship[1];
-		boolean bRetVal = _isRelationship(toCheck, oml, voc, matched, matchedInfo, e2o);
+		boolean bRetVal = _isRelationship(toCheck, matched, matchedInfo);
 		if (bRetVal) {
-			String iri = Util.getIri(toCheck, voc, oml, e2o);
+			String iri = Util.getLocalEClassIri(toCheck);
 			if (!relationShips.containsKey(iri)) {
 				addRelationship(matchedInfo[0], iri,
 						new Relationship(iri, matchedInfo[0].source, matchedInfo[0].target));
@@ -52,10 +52,10 @@ public class RelationshipUtil {
 		return bRetVal;
 	}
 
-	public boolean _isRelationship(EClass toCheck, OmlWriter oml, Vocabulary voc, String[] matchedIRI,
-			Relationship[] matchedInfo, Ecore2Oml e2o) {
+	public boolean _isRelationship(EClass toCheck, String[] matchedIRI,
+			Relationship[] matchedInfo) {
 		boolean bRetVal = false;
-		String iri = Util.getIri(toCheck, voc, oml, e2o);
+		String iri = Util.getLocalEClassIri(toCheck);
 		if (relationShips.containsKey(iri)) {
 			matchedIRI[0] = iri;
 			matchedInfo[0] = relationShips.get(iri);
@@ -63,7 +63,7 @@ public class RelationshipUtil {
 		}
 		EList<EClass> superTypes = toCheck.getEAllSuperTypes();
 		for (EClass superType : superTypes) {
-			bRetVal |= _isRelationship(superType, oml, voc, matchedIRI, matchedInfo, e2o);
+			bRetVal |= _isRelationship(superType, matchedIRI, matchedInfo);
 			if (bRetVal) {
 				return true;
 			}
@@ -111,25 +111,35 @@ public class RelationshipUtil {
 	}
 
 	public Relationship getInfo(EClass eContainingClass, OmlWriter oml, Vocabulary vocabulary, Ecore2Oml e2o) {
-		return relationShips.get(Util.getIri(eContainingClass, vocabulary, oml, e2o));
+		return this.getInfo(Util.getIri(eContainingClass, vocabulary, oml, e2o));
+	}
+	
+	public Relationship getInfo(String IRI) {
+		return relationShips.get(IRI);
 	}
 
 	public String getForwardName(EClassifier eClass, String iri) {
 		Relationship info = relationShips.get(iri);
-		if (info.forwardName != null) {
+		if (info.forwardName != null && !info.forwardName.isEmpty()) {
 			return info.forwardName;
 		}
-		return StringExtensions.toFirstLower(Util.getMappedName(eClass)) + Constants.NAME_SEPERATOR
-				+ info.forwardPostFix;
+		if (info.forwardPostFix != null && !info.forwardPostFix.isEmpty()) {
+			return StringExtensions.toFirstLower(Util.getMappedName(eClass)) + Constants.NAME_SEPERATOR
+					+ info.forwardPostFix;
+		}
+		return "";
 	}
 
 	public String getReverseName(EClassifier eClass, String iri) {
 		Relationship info = relationShips.get(iri);
-		if (info.reverseName != null) {
+		if (info.reverseName != null && !info.reverseName.isEmpty()) {
 			return info.reverseName;
 		}
-		return StringExtensions.toFirstLower(Util.getMappedName(eClass)) + Constants.NAME_SEPERATOR
-				+ info.reversePostFix;
+		if (info.reversePostFix != null && !info.reversePostFix.isEmpty()) {
+			return StringExtensions.toFirstLower(Util.getMappedName(eClass)) + Constants.NAME_SEPERATOR
+					+ info.reversePostFix;
+		}
+		return  "";
 	}
 
 }

@@ -13,6 +13,7 @@ import org.apache.log4j.Logger;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EObject;
 
+import io.opencaesar.ecore2oml.preprocessors.participants.ConversionParticipant;
 import io.opencaesar.ecore2oml.util.FilterUtil;
 
 public class EAttributeConversionParticipant extends ConversionParticipant {

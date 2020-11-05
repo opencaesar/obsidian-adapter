@@ -1,10 +1,12 @@
-package io.opencaesar.ecore2oml.preprocessors;
+package io.opencaesar.ecore2oml.preprocessors.participants;
 
 import java.util.Map;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.eclipse.emf.ecore.EObject;
+
+import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 
 public class EPackageConversionParticipant extends ConversionParticipant {
 	

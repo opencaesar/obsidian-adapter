@@ -19,6 +19,8 @@ import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.util.EcoreSwitch;
 
+import io.opencaesar.ecore2oml.preprocessors.participants.ConversionParticipant;
+
 public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 
 	private Map<Integer, Set<ConversionParticipant>> participants = new HashMap<>();
@@ -70,7 +72,7 @@ public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 
 	@Override
 	public EObject caseEClass(EClass object) {
-		// System.out.println(object.getName());
+		callPreProcessingHandlers(EcorePackage.ECLASS, object);
 		object.getEStructuralFeatures().stream().forEach(f -> doSwitch(f));
 		return null;
 	}

@@ -2,7 +2,7 @@ package io.opencaesar.ecore2oml.preprocessors;
 
 import org.eclipse.emf.ecore.EReference;
 
-class TwoERefKey {
+public class TwoERefKey {
 
 	public TwoERefKey(EReference forward, EReference reverse) {
 		this.forward = forward;
