@@ -21,6 +21,6 @@ Windows
     gradlew.bat build
 ```
 
-## [Ecore to OML](ecore2oml/README.md) [ ![Download](https://api.bintray.com/packages/opencaesar/ecore-adapter/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/ecore-adapter/ecore2oml/_latestVersion)
+## [Ecore to OML](ecore2oml/README.md) [ ![Download](https://api.bintray.com/packages/opencaesar/adapters/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/adapters/ecore2oml/_latestVersion)
 
 A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml) vocabularies
