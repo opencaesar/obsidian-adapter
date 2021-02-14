@@ -23,8 +23,12 @@ import io.opencaesar.ecore2oml.util.RelationshipUtil;
 import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.CardinalityRestrictionKind;
 import io.opencaesar.oml.Entity;
+import io.opencaesar.oml.InverseSourceRelation;
+import io.opencaesar.oml.InverseTargetRelation;
 import io.opencaesar.oml.RangeRestrictionKind;
 import io.opencaesar.oml.RelationEntity;
+import io.opencaesar.oml.SourceRelation;
+import io.opencaesar.oml.TargetRelation;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlRead;
 import io.opencaesar.oml.util.OmlWriter;
@@ -46,7 +50,7 @@ public class EClassHandler implements ConversionHandler {
 		boolean isRelationship = relationInfo!=null ? relationInfo.containsKey(object) : false;
 		if (isRelationship) {
 			srcAndTarget =  relationInfo.get(object);
-			LOGGER.info(getIri(object, vocabulary, oml,visitor) + "Relationship: " + srcAndTarget.source.getName() + " => " + srcAndTarget.target.getName());
+			LOGGER.debug(getIri(object, vocabulary, oml,visitor) + "Relationship: " + srcAndTarget.source.getName() + " => " + srcAndTarget.target.getName());
 		}
 		EAnnotation annotation = Util.getAnnotation(object, DUPLICATES);
 		boolean isDuplicate = annotation == null ? false : true;
@@ -131,7 +135,7 @@ public class EClassHandler implements ConversionHandler {
 		Object oDefaultValue = original.getDefaultValue();
 		if (defaultValue!=null && !defaultValue.equals(oDefaultValue) || (oDefaultValue!=null && !oDefaultValue.equals(defaultValue))) {
 			// TODO : annotation
-			LOGGER.info(element.getName() + " New Default Value : " + defaultValue);
+			LOGGER.debug(element.getName() + " New Default Value : " + defaultValue);
 		}
 
 		EClassifier oType = original.getEType();
@@ -190,13 +194,15 @@ public class EClassHandler implements ConversionHandler {
 		if (object == srcAndTarget.source.getEContainingClass()) {
 			String sourceName = getMappedName(srcAndTarget.source);
 			if (!sourceName.isEmpty()) {
-				oml.addSourceRelation(entity, sourceName);
+				SourceRelation sourceRelation = oml.addSourceRelation(entity, sourceName);
+				Util.addLabelAnnotationIfNeeded(srcAndTarget.source, sourceRelation, oml, vocabulary);
 				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (source) => " + sourceName);
 			}
 			if (srcAndTarget.source.getEOpposite() != null) {
 				String inverseSourceName = getMappedName(srcAndTarget.source.getEOpposite());
 				if (!inverseSourceName.isEmpty()) {
-					oml.addInverseSourceRelation(entity, inverseSourceName);
+					InverseSourceRelation rel = oml.addInverseSourceRelation(entity, inverseSourceName);
+					Util.addLabelAnnotationIfNeeded(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
 					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse source) => " + inverseSourceName);
 				}
 			}
@@ -204,13 +210,15 @@ public class EClassHandler implements ConversionHandler {
 		if (object == srcAndTarget.target.getEContainingClass()) {
 			String targetName = getMappedName(srcAndTarget.target);
 			if (!targetName.isEmpty()) {
-				oml.addTargetRelation(entity, targetName);
+				TargetRelation targetRelation = oml.addTargetRelation(entity, targetName);
+				Util.addLabelAnnotationIfNeeded(srcAndTarget.target, targetRelation, oml, vocabulary);
 				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (target) => " + targetName);
 			}
 			if (srcAndTarget.target.getEOpposite() != null) {
 				String inverseTargetName = getMappedName(srcAndTarget.target.getEOpposite());
 				if (!inverseTargetName.isEmpty()) {
-					oml.addInverseTargetRelation(entity, inverseTargetName);
+					InverseTargetRelation rel = oml.addInverseTargetRelation(entity, inverseTargetName);
+					Util.addLabelAnnotationIfNeeded(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
 					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse target) => " + inverseTargetName);
 				}
 			}
