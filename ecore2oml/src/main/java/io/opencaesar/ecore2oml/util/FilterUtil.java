@@ -14,7 +14,7 @@ public class FilterUtil {
 		if (isAnnotationSet(object, AnnotationKind.ignore)) {
 			bRetVal = true;
 		}
-		if (isAnnotationSet(object.getEReferenceType(), AnnotationKind.ignore)) {
+		if (object.getEType() != null && isAnnotationSet(object.getEReferenceType(), AnnotationKind.ignore)) {
 			bRetVal = true;
 		}
 		if (isAnnotationSet(object, AnnotationKind.isRelationSource) || 
@@ -29,7 +29,7 @@ public class FilterUtil {
 		if (isAnnotationSet(eAttr, AnnotationKind.ignore)) {
 			return true;
 		}
-		if (isAnnotationSet(eAttr.getEAttributeType(), AnnotationKind.ignore)) {
+		if (eAttr.getEType() != null && isAnnotationSet(eAttr.getEAttributeType(), AnnotationKind.ignore)) {
 			return true;
 		}
 		return false;

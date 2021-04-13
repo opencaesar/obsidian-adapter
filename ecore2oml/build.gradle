@@ -6,15 +6,22 @@ mainClassName = 'io.opencaesar.ecore2oml.Ecore2OmlApp'
 applicationName = 'ecore2oml'
 
 dependencies {
- 	implementation 'xml-resolver:xml-resolver:1.2'
+	implementation "com.beust:jcommander:${versions.jcommander}"
+	implementation "log4j:log4j:${versions.log4j}"
+	implementation "org.slf4j:slf4j-simple:${versions.slf4j}"
+	testImplementation "junit:junit:${versions.junit}"
+
+ 	implementation "xml-resolver:xml-resolver:${versions.xmlresolver}"
 
     implementation "io.opencaesar.oml:io.opencaesar.oml.dsl:${versions.oml}"
 
-	implementation "org.eclipse.xtext:org.eclipse.xtext.ecore:2.16.0"
-	implementation 'org.eclipse.emf:org.eclipse.emf.ecore.xcore:1.3.+'
-	implementation 'org.eclipse.emf:org.eclipse.emf.ecore.xcore.lib:1.1.+'
-	implementation "org.eclipse.emf:org.eclipse.emf.mwe2.runtime:2.9.0.201605261059"
-	implementation 'org.eclipse.emf:org.eclipse.emf.codegen:+'
-	implementation 'org.eclipse.emf:org.eclipse.emf.codegen.ecore:2.11.+'
-	implementation 'org.eclipse.emf:org.eclipse.emf.codegen.ecore.xtext:1.2.+'
+	implementation "org.eclipse.xtext:org.eclipse.xtext.ecore:${versions.xtext}"
+	implementation ("org.eclipse.emf:org.eclipse.emf.ecore.xcore:${versions.xcore}"){
+		exclude group: 'org.antlr', module: 'antlr-runtime'
+	}
+	implementation "org.eclipse.emf:org.eclipse.emf.ecore.xcore.lib:${versions.xcoreLib}"
+	implementation "org.eclipse.emf:org.eclipse.emf.mwe2.runtime:${versions.mwe2}"
+	implementation "org.eclipse.emf:org.eclipse.emf.codegen:${versions.codegen}"
+	implementation "org.eclipse.emf:org.eclipse.emf.codegen.ecore:${versions.codegenEcore}"
+	implementation "org.eclipse.emf:org.eclipse.emf.codegen.ecore.xtext:${versions.ecoreXtext}"
 }

@@ -1,6 +1,6 @@
 # Ecore2Oml
 
-[ ![Download](https://api.bintray.com/packages/opencaesar/adapters/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/adapters/ecore2oml/_latestVersion)
+[![Release](https://img.shields.io/github/v/tag/opencaesar/ecore-adapter?label=release)](https://github.com/opencaesar/ecore-adapter/releases/latest)
 
 A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml) vocabularies
 
@@ -25,9 +25,7 @@ Args
 ```
 buildscript {
 	repositories {
-		mavenLocal()
-		maven { url 'https://dl.bintray.com/opencaesar/adapters' }
-		jcenter()
+		mavenCentral()
 	}
 	dependencies {
 		classpath 'io.opencaesar.ecore:ecore2oml-gradle:+'

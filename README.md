@@ -1,6 +1,7 @@
 # OML Adapter for Ecore
 
 [![Build Status](https://travis-ci.org/opencaesar/ecore-adapter.svg?branch=master)](https://travis-ci.org/opencaesar/ecore-adapter)
+[![Release](https://img.shields.io/github/v/tag/opencaesar/ecore-adapter?label=release)](https://github.com/opencaesar/ecore-adapter/releases/latest)
 
 An [OML](https://opencaesar.github.io/oml) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)
 
@@ -11,7 +12,7 @@ An [OML](https://opencaesar.github.io/oml) adapter for [Ecore](https://www.eclip
 ```
       
 ## Build
-Requirements: java 11
+Requirements: JDK 11
 Mac/Linux
 ```
     ./gradlew build
@@ -21,6 +22,6 @@ Windows
     gradlew.bat build
 ```
 
-## [Ecore to OML](ecore2oml/README.md) [ ![Download](https://api.bintray.com/packages/opencaesar/adapters/ecore2oml/images/download.svg) ](https://bintray.com/opencaesar/adapters/ecore2oml/_latestVersion)
+## [Ecore to OML](ecore2oml/README.md)
 
 A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml) vocabularies
