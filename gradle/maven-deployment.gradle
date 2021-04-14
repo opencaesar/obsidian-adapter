@@ -70,12 +70,15 @@ publishing {
 }
 
 signing {
-	required = { gradle.taskGraph.hasTask("${project.path}:publishMavenPublicationToSonatypeRepository") }
 	def pgpSigningKey = project.findProperty('pgpSigningKey')
 	if (pgpSigningKey != null) { pgpSigningKey = new String(pgpSigningKey.decodeBase64()) }
 	def pgpSigningPassword = project.findProperty('pgpSigningPassword')
 	useInMemoryPgpKeys(pgpSigningKey, pgpSigningPassword)
-    sign publishing.publications.maven
+	sign publishing.publications.maven
+}
+
+gradle.taskGraph.whenReady { taskGraph -> 
+	signMavenPublication.onlyIf { taskGraph.hasTask("${project.path}:publishMavenPublicationToSonatypeRepository") }
 }
 
 tasks.withType(GenerateModuleMetadata) {
