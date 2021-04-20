@@ -39,10 +39,11 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import com.google.inject.Injector;
 
-import io.opencaesar.ecore2oml.util.Options;
-import io.opencaesar.ecore2oml.util.RelationshipUtil;
-import io.opencaesar.ecore2oml.util.SemanticFlags;
-import io.opencaesar.ecore2oml.util.URIMapper;
+import io.opencaesar.ecore2oml.options.AspectUtil;
+import io.opencaesar.ecore2oml.options.Options;
+import io.opencaesar.ecore2oml.options.RelationshipUtil;
+import io.opencaesar.ecore2oml.options.SemanticFlags;
+import io.opencaesar.ecore2oml.options.URIMapper;
 import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.dsl.OmlStandaloneSetup;
 import io.opencaesar.oml.util.OmlCatalog;
@@ -154,6 +155,7 @@ public class Ecore2OmlApp {
 			Options options = gson.fromJson(reader, Options.class);
 			URIMapper.init(options.uriMapping);
 			RelationshipUtil.init(options.relationships);
+			AspectUtil.init(options.aspects);
 			SemanticFlags.init(options.semanticFlags);
 			
 		}

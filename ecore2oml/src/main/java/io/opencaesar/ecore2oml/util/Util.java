@@ -22,6 +22,8 @@ import org.eclipse.xtext.xbase.lib.StringExtensions;
 
 import io.opencaesar.ecore2oml.AnnotationKind;
 import io.opencaesar.ecore2oml.Ecore2Oml;
+import io.opencaesar.ecore2oml.options.SemanticFlags;
+import io.opencaesar.ecore2oml.options.URIMapper;
 import io.opencaesar.oml.AnnotatedElement;
 import io.opencaesar.oml.Literal;
 import io.opencaesar.oml.Member;
@@ -220,6 +222,11 @@ public class Util {
 				oml.addAnnotation(vocabulary, object, DC+"#description", value);
 			}
 		}
+	}
+	
+	static public boolean defaultsToAspect(EClass object) {
+		return (object.eIsProxy() || object.isAbstract() || object.isInterface())
+				&& object.getESuperTypes().stream().allMatch(i -> defaultsToAspect(i));
 	}
 	
 	static public void setSemanticFlags(String iri,RelationEntity entity) {

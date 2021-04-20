@@ -1,4 +1,4 @@
-package io.opencaesar.ecore2oml.util;
+package io.opencaesar.ecore2oml.options;
 
 import java.util.HashMap;
 import java.util.List;

@@ -1,8 +1,10 @@
-package io.opencaesar.ecore2oml.util;
+package io.opencaesar.ecore2oml.options;
 
 import java.util.List;
 
 import org.eclipse.emf.ecore.EStructuralFeature;
+
+import io.opencaesar.ecore2oml.util.Util;
 
 public class Relationship {
 	

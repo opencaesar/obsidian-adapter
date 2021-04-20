@@ -1,4 +1,4 @@
-package io.opencaesar.ecore2oml.util;
+package io.opencaesar.ecore2oml.options;
 
 public class OverrideInfo {
 		

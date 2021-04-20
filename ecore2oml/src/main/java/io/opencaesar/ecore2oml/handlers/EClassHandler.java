@@ -3,7 +3,9 @@ package io.opencaesar.ecore2oml.handlers;
 import static io.opencaesar.ecore2oml.util.Util.getIri;
 import static io.opencaesar.ecore2oml.util.Util.getMappedName;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -17,11 +19,14 @@ import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.opencaesar.ecore2oml.Ecore2Oml;
+import io.opencaesar.ecore2oml.options.Aspect;
+import io.opencaesar.ecore2oml.options.AspectUtil;
+import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 import io.opencaesar.ecore2oml.util.Pair;
-import io.opencaesar.ecore2oml.util.RelationshipUtil;
 import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.CardinalityRestrictionKind;
+import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.InverseSourceRelation;
 import io.opencaesar.oml.InverseTargetRelation;
@@ -38,6 +43,8 @@ public class EClassHandler implements ConversionHandler {
 	private static final String ETYPE = "eType";
 	private static final String DUPLICATES = "duplicates";
 	private static final String REDEFINES = "redefines";
+	private static final String CONCEPT_POSTFIX = "_Concept";
+	private static final String RELATION_POSTFIX = "_Relation";
 	static private Logger LOGGER = LogManager.getLogger(EClassHandler.class);
 
 	@Override
@@ -47,7 +54,13 @@ public class EClassHandler implements ConversionHandler {
 		Pair<EReference, EReference> srcAndTarget=null;
 		@SuppressWarnings("unchecked")
 		Map<EClass,Pair<EReference, EReference>> relationInfo = (Map<EClass,Pair<EReference, EReference>>)collections.get(CollectionKind.RelationShips);
-		boolean isRelationship = relationInfo!=null ? relationInfo.containsKey(object) : false;
+		
+		boolean isRelationship = false;
+		boolean isForcedAspect = AspectUtil.getInstance().basicIsAspect(object);
+		if (!isForcedAspect) {
+			isRelationship = relationInfo!=null ? relationInfo.containsKey(object) : false;
+		}
+		
 		if (isRelationship) {
 			srcAndTarget =  relationInfo.get(object);
 			LOGGER.debug(getIri(object, vocabulary, oml,visitor) + "Relationship: " + srcAndTarget.source.getName() + " => " + srcAndTarget.target.getName());
@@ -57,9 +70,12 @@ public class EClassHandler implements ConversionHandler {
 		Entity entity = null;
 		if (isRelationship) {
 			entity = convertEClassToRelationEntity(object,srcAndTarget, oml, vocabulary,visitor);
-		} else if (isAspect(object)) {
+		} else if (Util.defaultsToAspect(object)) {
 			entity = oml.addAspect(vocabulary, getMappedName(object));
-		} else {
+		} else if (isForcedAspect){
+			entity = oml.addAspect(vocabulary, getMappedName(object));
+			createSubElementsOfForcedAspect(entity,object,vocabulary,oml,visitor);
+		}else {
 			entity = oml.addConcept(vocabulary, getMappedName(object));
 		}
 		for (EClass eSuperType : object.getESuperTypes()) {
@@ -73,6 +89,49 @@ public class EClassHandler implements ConversionHandler {
 		}
 		object.getEStructuralFeatures().stream().forEach(f -> visitor.doSwitch(f));
 		return entity;
+	}
+
+	private void createSubElementsOfForcedAspect(Entity entity, EClass object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml visitor) {
+		Aspect aspectInfo = AspectUtil.getInstance().getAspectInfo(object);
+		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> AspectUtil.getInstance().basicIsAspect(a)).collect(Collectors.toList());
+		
+		if (aspectInfo.concept!=null && aspectInfo.concept.subConcept) {
+			// create the sub class concept
+			String name = getMappedName(object) + CONCEPT_POSTFIX;
+			Concept conceptEntity = oml.addConcept(vocabulary,name);
+			String superIri = OmlRead.getIri(entity) ;
+			if (superIri != null) {
+				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(conceptEntity), superIri);
+			}
+			for (EClass superType : eSuperTypes) {
+				superIri = getIri(superType, vocabulary, oml,visitor);
+				Aspect superAspectInfo = AspectUtil.getInstance().getAspectInfo(superIri);
+				if (superAspectInfo != null && superAspectInfo.concept !=null && superAspectInfo.concept.subConcept) {
+					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(conceptEntity), superIri + CONCEPT_POSTFIX);
+				}
+			}
+			//Literal label = oml.createQuotedLiteral(vocabulary, OmlRead.getIri(conceptEntity), null, null);
+			//oml.addAnnotation(vocabulary, superIri, NameSpaces.RDFS+"#label", label);
+		}
+		if (aspectInfo.relation!=null) {
+			String name = getMappedName(object) + RELATION_POSTFIX;
+			RelationEntity relEntity = oml.addRelationEntity(vocabulary, name, aspectInfo.relation.from,aspectInfo.relation.to,
+					false, false, false, false, false, false, false);
+			String superIri = OmlRead.getIri(entity);
+			if (superIri != null) {
+				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(relEntity), superIri);
+			}
+			for (EClass superType : eSuperTypes) {
+				superIri = getIri(superType, vocabulary, oml,visitor) ;
+				Aspect superAspectInfo = AspectUtil.getInstance().getAspectInfo(superIri);
+				if (superAspectInfo != null && superAspectInfo.relation !=null) {
+					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(relEntity), superIri + RELATION_POSTFIX);
+				}
+			}
+			
+			//Literal label = oml.createQuotedLiteral(vocabulary, OmlRead.getIri(relEntity), null, null);
+			//oml.addAnnotation(vocabulary, superIri, NameSpaces.RDFS+"#label", label);
+		}
 	}
 
 	private void handleDuplicate(EClass object, Entity entity, EAnnotation annotation, OmlWriter oml,
@@ -161,11 +220,11 @@ public class EClassHandler implements ConversionHandler {
 	private void handleEReferenceDuplicate(EAnnotation annotation, Entity entity, EReference element, OmlWriter oml,
 			Vocabulary vocabulary,Ecore2Oml e2o) {
 		EClassifier type = element.getEType();
-		if (element.getEOpposite() != null) {
-			EAnnotation typeAnnotation = Util.getAnnotation(annotation, element.getName());
-			if (typeAnnotation != null) {
-				String val = typeAnnotation.getDetails().get(ETYPE);
-				// UGLY !!
+		EAnnotation typeAnnotation = Util.getAnnotation(annotation, element.getName());
+		if (typeAnnotation != null && typeAnnotation.getDetails()!=null ) {
+			String val = typeAnnotation.getDetails().get(ETYPE);
+			// UGLY !!
+			if (val!=null) {
 				String typeName = val.substring(5);
 				type = type.getEPackage().getEClassifier(typeName);
 			}
@@ -224,10 +283,5 @@ public class EClassHandler implements ConversionHandler {
 			}
 		}
 		return entity;
-	}
-
-	static private boolean isAspect(EClass object) {
-		return (object.eIsProxy() || object.isAbstract() || object.isInterface())
-				&& object.getESuperTypes().stream().allMatch(i -> isAspect(i));
 	}
 }

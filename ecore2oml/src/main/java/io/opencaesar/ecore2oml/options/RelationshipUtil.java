@@ -1,4 +1,4 @@
-package io.opencaesar.ecore2oml.util;
+package io.opencaesar.ecore2oml.options;
 
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +11,8 @@ import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.xtext.xbase.lib.StringExtensions;
 
 import io.opencaesar.ecore2oml.Ecore2Oml;
+import io.opencaesar.ecore2oml.util.Constants;
+import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlWriter;
 
