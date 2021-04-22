@@ -57,15 +57,17 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	private final OmlWriter oml;
 	private Set<ConversionPreProcessing> preprocessors = new HashSet<>();
 	private Map<String,EPackage> dependency = new HashMap<>();
+	public ConversionContext context;
 	
 	private Logger LOGGER = LogManager.getLogger(Ecore2Oml.class);
 	
 	private Map<CollectionKind,Object> collections = new HashMap<>();
 	
-	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlWriter oml) {
+	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlWriter oml, ConversionContext conversionContext) {
 		this.ePackage = ePackage;
 		this.outputResourceURI = outputResourceURI;
 		this.oml = oml;
+		this.context = conversionContext;
 		initPreProcessors();
 		initHandlers();
 	}
@@ -143,6 +145,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 			try {
 				ConversionPreProcessing pre = class1.getDeclaredConstructor().newInstance();
 				pre.setCollections(collections);
+				pre.setContext(this.context);
 				preprocessors.add(pre);
 				// TODO: read from File
 				pre.addParticipant(EcorePackage.EATTRIBUTE, EAttributeConversionParticipant.class);

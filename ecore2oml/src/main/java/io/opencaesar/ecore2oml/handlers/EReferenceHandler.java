@@ -1,7 +1,6 @@
 package io.opencaesar.ecore2oml.handlers;
 
 import static io.opencaesar.ecore2oml.util.Util.addGeneratedAnnotation;
-import static io.opencaesar.ecore2oml.util.Util.addLabelAnnotationIfNeeded;
 import static io.opencaesar.ecore2oml.util.Util.getAnnotationValue;
 import static io.opencaesar.ecore2oml.util.Util.getIri;
 import static io.opencaesar.ecore2oml.util.Util.getMappedName;
@@ -114,8 +113,8 @@ public class EReferenceHandler implements ConversionHandler{
 			
 			// the forward relation
 			ForwardRelation forward = oml.addForwardRelation(entity, name);
-			addLabelAnnotationIfNeeded(object,forward, oml, vocabulary);
-			Util.addTitle(object, forward, oml, vocabulary);
+			Util.addTitleAnnotationIfNeeded(object, forward, oml, vocabulary);
+			Util.addLabelAnnotation(object,forward, oml, vocabulary);
 			if (collisionInfo!=null) {
 				collisionInfo.entity = entity;
 				collisionInfo.forward = forward;
@@ -127,8 +126,8 @@ public class EReferenceHandler implements ConversionHandler{
 					reverseName = getAnnotationValue(object, AnnotationKind.reverseName);
 				}
 				ReverseRelation reverse = oml.addReverseRelation(entity, reverseName);
-				addLabelAnnotationIfNeeded(opposite,reverse, oml, vocabulary);
-				Util.addTitle(opposite, reverse, oml, vocabulary);
+				Util.addTitleAnnotationIfNeeded(opposite, reverse, oml, vocabulary);
+				Util.addLabelAnnotation(opposite,reverse, oml, vocabulary);
 			}
 		}
 		

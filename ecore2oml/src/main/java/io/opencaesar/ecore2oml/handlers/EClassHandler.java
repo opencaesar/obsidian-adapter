@@ -20,7 +20,6 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.opencaesar.ecore2oml.Ecore2Oml;
 import io.opencaesar.ecore2oml.options.Aspect;
-import io.opencaesar.ecore2oml.options.AspectUtil;
 import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 import io.opencaesar.ecore2oml.util.Pair;
@@ -54,9 +53,8 @@ public class EClassHandler implements ConversionHandler {
 		Pair<EReference, EReference> srcAndTarget=null;
 		@SuppressWarnings("unchecked")
 		Map<EClass,Pair<EReference, EReference>> relationInfo = (Map<EClass,Pair<EReference, EReference>>)collections.get(CollectionKind.RelationShips);
-		
 		boolean isRelationship = false;
-		boolean isForcedAspect = AspectUtil.getInstance().basicIsAspect(object);
+		boolean isForcedAspect = visitor.context.aspectUtil.basicIsAspect(object);
 		if (!isForcedAspect) {
 			isRelationship = relationInfo!=null ? relationInfo.containsKey(object) : false;
 		}
@@ -92,8 +90,8 @@ public class EClassHandler implements ConversionHandler {
 	}
 
 	private void createSubElementsOfForcedAspect(Entity entity, EClass object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml visitor) {
-		Aspect aspectInfo = AspectUtil.getInstance().getAspectInfo(object);
-		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> AspectUtil.getInstance().basicIsAspect(a)).collect(Collectors.toList());
+		Aspect aspectInfo = visitor.context.aspectUtil.getAspectInfo(object);
+		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> visitor.context.aspectUtil.basicIsAspect(a)).collect(Collectors.toList());
 		
 		if (aspectInfo.concept!=null && aspectInfo.concept.subConcept) {
 			// create the sub class concept
@@ -105,13 +103,12 @@ public class EClassHandler implements ConversionHandler {
 			}
 			for (EClass superType : eSuperTypes) {
 				superIri = getIri(superType, vocabulary, oml,visitor);
-				Aspect superAspectInfo = AspectUtil.getInstance().getAspectInfo(superIri);
+				Aspect superAspectInfo = visitor.context.aspectUtil.getAspectInfo(superIri);
 				if (superAspectInfo != null && superAspectInfo.concept !=null && superAspectInfo.concept.subConcept) {
 					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(conceptEntity), superIri + CONCEPT_POSTFIX);
 				}
 			}
-			//Literal label = oml.createQuotedLiteral(vocabulary, OmlRead.getIri(conceptEntity), null, null);
-			//oml.addAnnotation(vocabulary, superIri, NameSpaces.RDFS+"#label", label);
+			Util.addLabelAnnotation(conceptEntity, oml, vocabulary);
 		}
 		if (aspectInfo.relation!=null) {
 			String name = getMappedName(object) + RELATION_POSTFIX;
@@ -123,22 +120,19 @@ public class EClassHandler implements ConversionHandler {
 			}
 			for (EClass superType : eSuperTypes) {
 				superIri = getIri(superType, vocabulary, oml,visitor) ;
-				Aspect superAspectInfo = AspectUtil.getInstance().getAspectInfo(superIri);
+				Aspect superAspectInfo = visitor.context.aspectUtil.getAspectInfo(superIri);
 				if (superAspectInfo != null && superAspectInfo.relation !=null) {
 					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(relEntity), superIri + RELATION_POSTFIX);
 				}
 			}
-			
-			//Literal label = oml.createQuotedLiteral(vocabulary, OmlRead.getIri(relEntity), null, null);
-			//oml.addAnnotation(vocabulary, superIri, NameSpaces.RDFS+"#label", label);
+			Util.addLabelAnnotation(relEntity, oml, vocabulary);
 		}
 	}
 
 	private void handleDuplicate(EClass object, Entity entity, EAnnotation annotation, OmlWriter oml,
 			Vocabulary vocabulary,Ecore2Oml e2o) {
 		annotation.eContents().forEach(element -> {
-			// elements here can be EOperation , ERef, EAttribute, we handle only ERef and
-			// EAttribute
+			// elements here can be EOperation , ERef, EAttribute, we handle only ERef and EAttribute
 			if (element instanceof EReference) {
 				handleEReferenceDuplicate(annotation, entity, (EReference) element, oml, vocabulary,e2o);
 			} else if (element instanceof EAttribute) {
@@ -254,14 +248,16 @@ public class EClassHandler implements ConversionHandler {
 			String sourceName = getMappedName(srcAndTarget.source);
 			if (!sourceName.isEmpty()) {
 				SourceRelation sourceRelation = oml.addSourceRelation(entity, sourceName);
-				Util.addLabelAnnotationIfNeeded(srcAndTarget.source, sourceRelation, oml, vocabulary);
+				Util.addTitleAnnotationIfNeeded(srcAndTarget.source, sourceRelation, oml, vocabulary);
+				Util.addLabelAnnotation(srcAndTarget.source, sourceRelation, oml, vocabulary);
 				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (source) => " + sourceName);
 			}
 			if (srcAndTarget.source.getEOpposite() != null) {
 				String inverseSourceName = getMappedName(srcAndTarget.source.getEOpposite());
 				if (!inverseSourceName.isEmpty()) {
 					InverseSourceRelation rel = oml.addInverseSourceRelation(entity, inverseSourceName);
-					Util.addLabelAnnotationIfNeeded(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
+					Util.addTitleAnnotationIfNeeded(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
+					Util.addLabelAnnotation(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
 					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse source) => " + inverseSourceName);
 				}
 			}
@@ -270,14 +266,16 @@ public class EClassHandler implements ConversionHandler {
 			String targetName = getMappedName(srcAndTarget.target);
 			if (!targetName.isEmpty()) {
 				TargetRelation targetRelation = oml.addTargetRelation(entity, targetName);
-				Util.addLabelAnnotationIfNeeded(srcAndTarget.target, targetRelation, oml, vocabulary);
+				Util.addTitleAnnotationIfNeeded(srcAndTarget.target, targetRelation, oml, vocabulary);
+				Util.addLabelAnnotation(srcAndTarget.target, targetRelation, oml, vocabulary);
 				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (target) => " + targetName);
 			}
 			if (srcAndTarget.target.getEOpposite() != null) {
 				String inverseTargetName = getMappedName(srcAndTarget.target.getEOpposite());
 				if (!inverseTargetName.isEmpty()) {
 					InverseTargetRelation rel = oml.addInverseTargetRelation(entity, inverseTargetName);
-					Util.addLabelAnnotationIfNeeded(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
+					Util.addTitleAnnotationIfNeeded(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
+					Util.addLabelAnnotation(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
 					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse target) => " + inverseTargetName);
 				}
 			}

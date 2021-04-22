@@ -19,6 +19,7 @@ import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.util.EcoreSwitch;
 
+import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.preprocessors.participants.ConversionParticipant;
 
 public class ConversionPreProcessing extends EcoreSwitch<EObject> {
@@ -27,7 +28,8 @@ public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 	private Map<CollectionKind, Object> collections;
 	
 	private Logger LOGGER = LogManager.getLogger(ConversionPreProcessing.class);
-
+	private ConversionContext context;
+	
 	public void setCollections(Map<CollectionKind, Object> collections) {
 		this.collections = collections;
 	}
@@ -39,7 +41,9 @@ public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 			participants.put(id, container);
 		}
 		try {
-			container.add(part.getDeclaredConstructor().newInstance());
+			ConversionParticipant partInst = part.getDeclaredConstructor().newInstance();
+			partInst.setContext(this.context);
+			container.add(partInst);
 		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
 				| NoSuchMethodException | SecurityException e) {
 			LOGGER.error("Failed to create instance of " + part);
@@ -47,6 +51,10 @@ public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 
 	}
 
+	public void setContext(ConversionContext context) {
+		this.context = context;
+	}
+	
 	public void run(EPackage ePackage) {
 		doSwitch(ePackage);
 	}
@@ -60,13 +68,11 @@ public class ConversionPreProcessing extends EcoreSwitch<EObject> {
 
 	@Override
 	public EObject caseEEnumLiteral(EEnumLiteral object) {
-		// System.out.println(object.getName());
 		return null;
 	}
 
 	@Override
 	public EObject caseEDataType(EDataType object) {
-		// System.out.println(object.getName());
 		return null;
 	}
 

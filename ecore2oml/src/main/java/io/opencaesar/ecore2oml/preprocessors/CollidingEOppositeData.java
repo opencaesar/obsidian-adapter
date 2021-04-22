@@ -76,10 +76,6 @@ public class CollidingEOppositeData {
 		EReference[] retVal = new EReference[1];
 		retVal[0] = refs.stream().findFirst().get();
 		refs.forEach(ref -> {
-			// System.out.println(retVal[0].getName() + " " + retVal[0].isContainer() + " "
-			// + retVal[0].getUpperBound());
-			// System.out.println(ref.getName() + " " + ref.isContainer() + " " +
-			// ref.getUpperBound());
 			if (retVal[0] != ref) {
 				if (!pick(retVal, ref, ref)) {
 					if (!retVal[0].getName().equals(ref.getName())) {

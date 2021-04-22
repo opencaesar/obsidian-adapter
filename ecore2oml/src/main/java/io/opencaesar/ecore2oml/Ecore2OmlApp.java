@@ -39,7 +39,6 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import com.google.inject.Injector;
 
-import io.opencaesar.ecore2oml.options.AspectUtil;
 import io.opencaesar.ecore2oml.options.Options;
 import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.options.SemanticFlags;
@@ -148,14 +147,14 @@ public class Ecore2OmlApp {
 
 		final URL catalogURL = new File(outputCatalogPath).toURI().toURL();
 		final OmlCatalog catalog = OmlCatalog.create(catalogURL);
-		
+		ConversionContext conversionContext = new ConversionContext();		
 		if (optionsPath!=null) {
 			Gson gson = new Gson();
 			JsonReader reader = new JsonReader(new FileReader(optionsPath));
 			Options options = gson.fromJson(reader, Options.class);
 			URIMapper.init(options.uriMapping);
 			RelationshipUtil.init(options.relationships);
-			AspectUtil.init(options.aspects);
+			conversionContext.setAspectOptions(options);
 			SemanticFlags.init(options.semanticFlags);
 			
 		}
@@ -183,7 +182,7 @@ public class Ecore2OmlApp {
 						final String relativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OML_EXTENSION;
 						final URI outputResourceURI = URI.createURI(relativePath);
 						LOGGER.info("Creating: "+outputResourceURI);
-						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, writer);
+						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, writer,conversionContext);
 						e2o.run();
 						dependency.putAll(e2o.getDependencies());
 						outputResourceURIs.add (outputResourceURI);
@@ -202,7 +201,7 @@ public class Ecore2OmlApp {
 			for (Entry<String, EPackage> iri: dependency.entrySet()) {
 				String ecoreRelativePath =  catalog.resolveURI(iri.getKey()) +"."+OML_EXTENSION;
 				URI ecoreResourceURI = URI.createURI(ecoreRelativePath);
-				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, writer);
+				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, writer,conversionContext);				
 				e2o.run();
 				dependency.putAll(e2o.getDependencies());
 				outputResourceURIs.add (ecoreResourceURI);

@@ -30,7 +30,6 @@ import io.opencaesar.oml.Member;
 import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.Vocabulary;
-import io.opencaesar.oml.util.OmlRead;
 import io.opencaesar.oml.util.OmlWriter;
 
 public class Util {
@@ -88,25 +87,16 @@ public class Util {
 	
 	public static void addGeneratedAnnotation(Member object, OmlWriter oml, Vocabulary vocabulary) {
 		Literal generated = oml.createQuotedLiteral(vocabulary, "generated", null, null);
-		oml.addAnnotation(vocabulary, OmlRead.getIri(object), DC+"/source", generated);
+		oml.addAnnotation(vocabulary, object, DC+"/source", generated);
 	}
 	
-	public static void addLabelAnnotatiopnIfNeeded(Member object, String mappedName, OmlWriter oml, Vocabulary vocabulary) {
-		String originalName = object.getName();
-		if (!originalName.equals(mappedName)) {
-			Literal label = oml.createQuotedLiteral(vocabulary, originalName, null, null);
-			oml.addAnnotation(vocabulary, OmlRead.getIri(object), RDFS+"#label", label);
-		}
+	public static void addLabelAnnotation(Member member, OmlWriter oml, Vocabulary vocabulary) {
+		String splitted = splitCamelCase(member.getName().replaceAll("_", ""));
+		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
+		oml.addAnnotation(vocabulary, member, RDFS+"#label", label);
 	}
 	
-	public static void addLabelAnnotationIfNeeded(ENamedElement object, Member element, OmlWriter oml, Vocabulary vocabulary) {
-		if (!object.getName().equals(element.getName())) {
-			Literal label = oml.createQuotedLiteral(vocabulary, object.getName(), null, null);
-			oml.addAnnotation(vocabulary, OmlRead.getIri(element), DC+"#title", label);
-		}
-	}
-	
-	public static void addTitle(ENamedElement object, AnnotatedElement element, OmlWriter oml, Vocabulary vocabulary) {
+	public static void addLabelAnnotation(ENamedElement object, AnnotatedElement element, OmlWriter oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(object.getName());
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
 		if (element instanceof Vocabulary) {
@@ -116,9 +106,28 @@ public class Util {
 		}
 	}
 	
+	public static void addTitleAnnotationIfNeeded(ENamedElement object, Member member, OmlWriter oml, Vocabulary vocabulary) {
+		if (!object.getName().equals(member.getName())) {
+			Literal label = oml.createQuotedLiteral(vocabulary, object.getName(), null, null);
+			oml.addAnnotation(vocabulary, member, DC+"#title", label);
+		}
+	}
+	
+	static public void addDescriptionAnnotation(ENamedElement element, AnnotatedElement object, OmlWriter oml, Vocabulary vocabulary) {
+		EAnnotation genModelAnnotation = element.getEAnnotation(GEN_MODEL);
+		if (genModelAnnotation!=null) {
+			String val = genModelAnnotation.getDetails().get(DOCUMENTATION);
+			if (val!=null && !val.isBlank()) {
+				Literal value = oml.createQuotedLiteral(vocabulary, val, null, null);
+				oml.addAnnotation(vocabulary, object, DC+"#description", value);
+			}
+		}
+	}
+	
 	// TODO : may be user org.apache.commons.lang.StringUtils.splitByCharacterTypeCamelCase instead
 	private static String splitCamelCase(String s) {
-		   return s.replaceAll(
+		s = s.substring(0, 1).toUpperCase() + s.substring(1);
+		return s.replaceAll(
 		      String.format("%s|%s|%s",
 		         "(?<=[A-Z])(?=[A-Z][a-z])",
 		         "(?<=[^A-Z])(?=[A-Z])",
@@ -211,17 +220,6 @@ public class Util {
 			}
 		}
 		return iri;
-	}
-	
-	static public void handleNamedElementDoc(ENamedElement element, AnnotatedElement object, OmlWriter oml, Vocabulary vocabulary) {
-		EAnnotation genModelAnnotation = element.getEAnnotation(GEN_MODEL);
-		if (genModelAnnotation!=null) {
-			String val = genModelAnnotation.getDetails().get(DOCUMENTATION);
-			if (val!=null && !val.isBlank()) {
-				Literal value = oml.createQuotedLiteral(vocabulary, val, null, null);
-				oml.addAnnotation(vocabulary, object, DC+"#description", value);
-			}
-		}
 	}
 	
 	static public boolean defaultsToAspect(EClass object) {

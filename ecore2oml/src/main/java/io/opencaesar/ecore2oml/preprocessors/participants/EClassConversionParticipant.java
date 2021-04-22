@@ -11,7 +11,6 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 
-import io.opencaesar.ecore2oml.options.AspectUtil;
 import io.opencaesar.ecore2oml.options.Relationship;
 import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
@@ -21,20 +20,14 @@ import io.opencaesar.ecore2oml.util.Util;
 public class EClassConversionParticipant extends ConversionParticipant {
 
 	private static final String SUBSETS = "subsets";
-
+	
 	@Override
 	public void handle(EObject element, Map<CollectionKind, Object> collections) {
 		EClass object = (EClass) element;
-		if (AspectUtil.getInstance().isAspect(object)) {
-			addAspect(object,collections);
-		} else if (RelationshipUtil.getInstance().isRelationship(object)) {
+		if (!context.aspectUtil.isAspect(object) && RelationshipUtil.getInstance().isRelationship(object)) {
 			Pair<EReference, EReference> srcAndTarget = getSourceAndTaregt(object);
 			addRelation(object, srcAndTarget, collections);
 		}
-	}
-
-	private void addAspect(EClass object, Map<CollectionKind, Object> collections) {
-				
 	}
 
 	@SuppressWarnings("unchecked")
@@ -63,7 +56,7 @@ public class EClassConversionParticipant extends ConversionParticipant {
 
 	@Override
 	public void postProcess(Map<CollectionKind, Object> collections) {
-		AspectUtil.getInstance().populateSuperClasses();
+		context.aspectUtil.populateSuperClasses();
 	}
 
 	private static Pair<EReference, EReference> getSourceAndTaregt(EClass object) {

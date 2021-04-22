@@ -1,8 +1,5 @@
 package io.opencaesar.ecore2oml.handlers;
 
-import static io.opencaesar.ecore2oml.util.Util.addLabelAnnotationIfNeeded;
-import static io.opencaesar.ecore2oml.util.Util.handleNamedElementDoc;
-
 import java.util.Map;
 
 import org.eclipse.emf.ecore.ENamedElement;
@@ -32,10 +29,10 @@ public interface ConversionHandler {
 		EObject retVal = doConvert(object, vocabulary, oml, collections, visitor);
 		if (object instanceof ENamedElement && retVal instanceof AnnotatedElement) {
 			if (retVal instanceof Member) {
-				addLabelAnnotationIfNeeded((ENamedElement)object, (Member)retVal,oml,vocabulary);
+				Util.addTitleAnnotationIfNeeded((ENamedElement)object, (Member)retVal, oml, vocabulary);
 			}
-			Util.addTitle((ENamedElement)object, (AnnotatedElement)retVal, oml, vocabulary);
-			handleNamedElementDoc((ENamedElement)object, (AnnotatedElement)retVal,oml,vocabulary);
+			Util.addLabelAnnotation((ENamedElement)object, (AnnotatedElement)retVal,oml,vocabulary);
+			Util.addDescriptionAnnotation((ENamedElement)object, (AnnotatedElement)retVal,oml,vocabulary);
 		}
 		return retVal;
 	}
