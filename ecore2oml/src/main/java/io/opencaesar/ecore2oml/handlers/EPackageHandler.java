@@ -28,7 +28,7 @@ public class EPackageHandler implements ConversionHandler {
 	public EObject doConvert(EObject eObject, Vocabulary vocabulary, OmlWriter oml,
 			Map<CollectionKind, Object> collections, Ecore2Oml visitor) {
 		EPackage object = (EPackage)eObject;
-		final String iri = Util.getIri(object);
+		final String iri = Util.getIri(object, visitor.context);
 		final SeparatorKind separator = Util.getSeparator(object);
 		final String pefix = Util.getPrefix(object);
 		

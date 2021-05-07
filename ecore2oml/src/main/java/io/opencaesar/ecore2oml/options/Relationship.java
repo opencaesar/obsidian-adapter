@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.util.Util;
 
 public class Relationship {
@@ -17,12 +18,12 @@ public class Relationship {
 	public String reverseName;
 	public List<OverrideInfo> overrides;
 	
-	public boolean isSource(EStructuralFeature toCheck) {
-		return Util.getIri(toCheck).equals(source);
+	public boolean isSource(EStructuralFeature toCheck, ConversionContext context) {
+		return Util.getIri(toCheck, context).equals(source);
 	}
 	
-	public boolean isTarget(EStructuralFeature toCheck) {
-		return Util.getIri(toCheck).equals(target);
+	public boolean isTarget(EStructuralFeature toCheck, ConversionContext context) {
+		return Util.getIri(toCheck, context).equals(target);
 	}
 	
 	public Relationship(String iri, String source, String target) {

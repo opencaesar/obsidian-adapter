@@ -10,6 +10,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.xtext.xbase.lib.StringExtensions;
 
+import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.Ecore2Oml;
 import io.opencaesar.ecore2oml.util.Constants;
 import io.opencaesar.ecore2oml.util.Util;
@@ -17,35 +18,27 @@ import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlWriter;
 
 public class RelationshipUtil {
-	
+
 	private Map<String, Relationship> relationShips = new HashMap<>();
 	private Map<String, OverrideInfo> overrides = new HashMap<>();
-	static private RelationshipUtil _instance = new RelationshipUtil();
 
-	static public RelationshipUtil getInstance() {
-		return _instance;
-	}
-
-	static public void init(List<Relationship> relationships) {
-		synchronized (RelationshipUtil.class) {
-			for (Relationship relation : relationships) {
-				_instance.addRelationship(relation.root, relation);
-				if (relation.overrides!=null) {
-					for (OverrideInfo override : relation.overrides) {
-						_instance.overrides.put(override.iri, override);
-					}
+	public void init(List<Relationship> relationships) {
+		for (Relationship relation : relationships) {
+			addRelationship(relation.root, relation);
+			if (relation.overrides != null) {
+				for (OverrideInfo override : relation.overrides) {
+					overrides.put(override.iri, override);
 				}
 			}
-
 		}
 	}
 
-	public boolean isRelationship(EClass toCheck) {
+	public boolean isRelationship(EClass toCheck, ConversionContext context) {
 		String[] matched = new String[1];
 		Relationship[] matchedInfo = new Relationship[1];
-		boolean bRetVal = _isRelationship(toCheck, matched, matchedInfo);
+		boolean bRetVal = _isRelationship(toCheck, matched, matchedInfo, context);
 		if (bRetVal) {
-			String iri = Util.getLocalEClassIri(toCheck);
+			String iri = Util.getLocalEClassIri(toCheck, context);
 			if (!relationShips.containsKey(iri)) {
 				addRelationship(matchedInfo[0], iri,
 						new Relationship(iri, matchedInfo[0].source, matchedInfo[0].target));
@@ -54,10 +47,9 @@ public class RelationshipUtil {
 		return bRetVal;
 	}
 
-	public boolean _isRelationship(EClass toCheck, String[] matchedIRI,
-			Relationship[] matchedInfo) {
+	public boolean _isRelationship(EClass toCheck, String[] matchedIRI, Relationship[] matchedInfo, ConversionContext context) {
 		boolean bRetVal = false;
-		String iri = Util.getLocalEClassIri(toCheck);
+		String iri = Util.getLocalEClassIri(toCheck, context);
 		if (relationShips.containsKey(iri)) {
 			matchedIRI[0] = iri;
 			matchedInfo[0] = relationShips.get(iri);
@@ -65,7 +57,7 @@ public class RelationshipUtil {
 		}
 		EList<EClass> superTypes = toCheck.getEAllSuperTypes();
 		for (EClass superType : superTypes) {
-			bRetVal |= _isRelationship(superType, matchedIRI, matchedInfo);
+			bRetVal |= _isRelationship(superType, matchedIRI, matchedInfo, context);
 			if (bRetVal) {
 				return true;
 			}
@@ -115,7 +107,7 @@ public class RelationshipUtil {
 	public Relationship getInfo(EClass eContainingClass, OmlWriter oml, Vocabulary vocabulary, Ecore2Oml e2o) {
 		return this.getInfo(Util.getIri(eContainingClass, vocabulary, oml, e2o));
 	}
-	
+
 	public Relationship getInfo(String IRI) {
 		return relationShips.get(IRI);
 	}
@@ -141,7 +133,7 @@ public class RelationshipUtil {
 			return StringExtensions.toFirstLower(Util.getMappedName(eClass)) + Constants.NAME_SEPERATOR
 					+ info.reversePostFix;
 		}
-		return  "";
+		return "";
 	}
 
 }

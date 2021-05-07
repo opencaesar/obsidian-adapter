@@ -11,8 +11,8 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 
+import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.options.Relationship;
-import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 import io.opencaesar.ecore2oml.util.Pair;
 import io.opencaesar.ecore2oml.util.Util;
@@ -24,8 +24,8 @@ public class EClassConversionParticipant extends ConversionParticipant {
 	@Override
 	public void handle(EObject element, Map<CollectionKind, Object> collections) {
 		EClass object = (EClass) element;
-		if (!context.aspectUtil.isAspect(object) && RelationshipUtil.getInstance().isRelationship(object)) {
-			Pair<EReference, EReference> srcAndTarget = getSourceAndTaregt(object);
+		if (!context.aspectUtil.isAspect(object, context) && context.relationUtil.isRelationship(object, context)) {
+			Pair<EReference, EReference> srcAndTarget = getSourceAndTaregt(object, context);
 			addRelation(object, srcAndTarget, collections);
 		}
 	}
@@ -56,14 +56,14 @@ public class EClassConversionParticipant extends ConversionParticipant {
 
 	@Override
 	public void postProcess(Map<CollectionKind, Object> collections) {
-		context.aspectUtil.populateSuperClasses();
+		context.aspectUtil.populateSuperClasses(context);
 	}
 
-	private static Pair<EReference, EReference> getSourceAndTaregt(EClass object) {
+	private static Pair<EReference, EReference> getSourceAndTaregt(EClass object, ConversionContext context) {
 		Pair<EReference, EReference> state = new Pair<>();
-		boolean isRelationShip = RelationshipUtil.getInstance().isRelationship(object);
+		boolean isRelationShip = context.relationUtil.isRelationship(object, context);
 		if (isRelationShip) {
-			Relationship info = RelationshipUtil.getInstance().getInfo(Util.getLocalEClassIri(object));
+			Relationship info =context.relationUtil.getInfo(Util.getLocalEClassIri(object,context));
 			EList<EReference> refs = object.getEReferences();
 			for (EReference ref : refs) {
 				if (ref.getName().equals(info.source)) {
@@ -85,7 +85,7 @@ public class EClassConversionParticipant extends ConversionParticipant {
 			// if we could not find source and target we need to walk up the hierarchy
 			EList<EClass> supers = object.getESuperTypes();
 			for (EClass eClass : supers) {
-				state = getSourceAndTaregt(eClass);
+				state = getSourceAndTaregt(eClass, context);
 				if (state.source != null && state.target != null) {
 					break;
 				}

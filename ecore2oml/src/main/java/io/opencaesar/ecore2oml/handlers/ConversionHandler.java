@@ -20,7 +20,7 @@ public interface ConversionHandler {
 			Map<CollectionKind, Object> collections,Ecore2Oml visitor) ;
 	
 	default public void postConvert(Vocabulary vocabulary, OmlWriter oml,
-			Map<CollectionKind, Object> collections) {
+			Map<CollectionKind, Object> collections,Ecore2Oml visitor) {
 		// No OP
 	}
 	

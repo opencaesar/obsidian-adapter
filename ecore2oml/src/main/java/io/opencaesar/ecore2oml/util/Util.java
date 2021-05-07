@@ -21,9 +21,8 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.xtext.xbase.lib.StringExtensions;
 
 import io.opencaesar.ecore2oml.AnnotationKind;
+import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.Ecore2Oml;
-import io.opencaesar.ecore2oml.options.SemanticFlags;
-import io.opencaesar.ecore2oml.options.URIMapper;
 import io.opencaesar.oml.AnnotatedElement;
 import io.opencaesar.oml.Literal;
 import io.opencaesar.oml.Member;
@@ -156,7 +155,7 @@ public class Util {
 	
 	public static String getIri(final ENamedElement object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
 		if (object instanceof EPackage) {
-			return getIri((EPackage) object);
+			return getIri((EPackage) object, e2o.context);
 		} else if (object instanceof EClass) {
 			return getIri((EClass) object,vocabulary,oml,e2o);
 		} else if (object instanceof EEnum) {
@@ -164,36 +163,36 @@ public class Util {
 		} else if (object instanceof EDataType) {
 			return getIri((EDataType) object,vocabulary,oml,e2o);
 		} else if (object instanceof EStructuralFeature) {
-			return getIri((EStructuralFeature) object);
+			return getIri((EStructuralFeature) object, e2o.context);
 		}
 		return null;
 	}
 
-	static public String getIri(EPackage object) {
+	static public String getIri(EPackage object, ConversionContext context) {
 		String nsURI = object.getNsURI();
 		if (nsURI.endsWith("#") || nsURI.endsWith("/")) {
 			nsURI = nsURI.substring(0, nsURI.length()-1);
 		}
-		return URIMapper.getInstance().getMappedIRI(nsURI);
+		return context.uriMapper.getMappedIRI(nsURI);
 	}	
 	
 	
-	public static String buildIRIFromClassName(EPackage ePackage, String name) {
-		return getIri(ePackage)+ getSeparator(ePackage)+name;
+	public static String buildIRIFromClassName(EPackage ePackage, String name, ConversionContext context) {
+		return getIri(ePackage, context)+ getSeparator(ePackage)+name;
 	}
 
 	public static String getIri(EClass object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
 		final EPackage ePackage = object.getEPackage();  
 		if (ePackage != null) {
-			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
+			return qualify(getIri(ePackage, e2o.context)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
 		}
 		return null;
 	}
 	
-	public static String getLocalEClassIri(EClass eClass) {
+	public static String getLocalEClassIri(EClass eClass, ConversionContext context) {
 		final EPackage ePackage = eClass.getEPackage();  
 		if (ePackage != null) {
-			return getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(eClass);
+			return getIri(ePackage, context)+ getSeparator(ePackage)+ getMappedName(eClass);
 		}
 		return null;
 	}
@@ -201,18 +200,18 @@ public class Util {
 	public static String getIri(EDataType object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml e2o) {
 		final EPackage ePackage = object.getEPackage();  
 		if (ePackage != null) {
-			return qualify(getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
+			return qualify(getIri(ePackage, e2o.context)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
 		}
 		return null;
 	}	
 
-	static public String getIri(EStructuralFeature object) {
+	static public String getIri(EStructuralFeature object, ConversionContext context) {
 		final EPackage ePackage = object.getEContainingClass().getEPackage();  
-		return getIri(ePackage)+ getSeparator(ePackage)+ getMappedName(object);
+		return getIri(ePackage, context)+ getSeparator(ePackage)+ getMappedName(object);
 	}	
 
 	static private String qualify(String iri, EClassifier object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
-		final String vocabularyIri = getIri(object.getEPackage());
+		final String vocabularyIri = getIri(object.getEPackage(), e2o.context);
 		if (!vocabularyIri.equals(vocabulary.getIri())) {
 			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getUri().equals(vocabularyIri))) {
 				oml.addVocabularyExtension(vocabulary, vocabularyIri, null);
@@ -227,13 +226,13 @@ public class Util {
 				&& object.getESuperTypes().stream().allMatch(i -> defaultsToAspect(i));
 	}
 	
-	static public void setSemanticFlags(String iri,RelationEntity entity) {
-		setSemanticFlags(iri, entity, true);
+	static public void setSemanticFlags(String iri,RelationEntity entity, ConversionContext context) {
+		setSemanticFlags(iri, entity, true, context);
 	}
 
 	
-	static public void setSemanticFlags(String iri, RelationEntity entity, boolean value) {
-		Set<SemanticFlagKind> flags = SemanticFlags.getInstance().getSemanticFlags(iri);
+	static public void setSemanticFlags(String iri, RelationEntity entity, boolean value, ConversionContext context) {
+		Set<SemanticFlagKind> flags = context.semanticFlags.getSemanticFlags(iri);
 		for (SemanticFlagKind flag : flags) {
 			switch (flag) {
 			case asymmetric:

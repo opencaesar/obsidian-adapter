@@ -20,7 +20,6 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.opencaesar.ecore2oml.Ecore2Oml;
 import io.opencaesar.ecore2oml.options.Aspect;
-import io.opencaesar.ecore2oml.options.RelationshipUtil;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
 import io.opencaesar.ecore2oml.util.Pair;
 import io.opencaesar.ecore2oml.util.Util;
@@ -54,7 +53,7 @@ public class EClassHandler implements ConversionHandler {
 		@SuppressWarnings("unchecked")
 		Map<EClass,Pair<EReference, EReference>> relationInfo = (Map<EClass,Pair<EReference, EReference>>)collections.get(CollectionKind.RelationShips);
 		boolean isRelationship = false;
-		boolean isForcedAspect = visitor.context.aspectUtil.basicIsAspect(object);
+		boolean isForcedAspect = visitor.context.aspectUtil.basicIsAspect(object,visitor.context);
 		if (!isForcedAspect) {
 			isRelationship = relationInfo!=null ? relationInfo.containsKey(object) : false;
 		}
@@ -90,8 +89,8 @@ public class EClassHandler implements ConversionHandler {
 	}
 
 	private void createSubElementsOfForcedAspect(Entity entity, EClass object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml visitor) {
-		Aspect aspectInfo = visitor.context.aspectUtil.getAspectInfo(object);
-		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> visitor.context.aspectUtil.basicIsAspect(a)).collect(Collectors.toList());
+		Aspect aspectInfo = visitor.context.aspectUtil.getAspectInfo(object,visitor.context);
+		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> visitor.context.aspectUtil.basicIsAspect(a,visitor.context)).collect(Collectors.toList());
 		
 		if (aspectInfo.concept!=null && aspectInfo.concept.subConcept) {
 			// create the sub class concept
@@ -232,14 +231,14 @@ public class EClassHandler implements ConversionHandler {
 		final String targetIri = getIri(srcAndTarget.target.getEType(),vocabulary,oml, e2o);
 		final RelationEntity entity = oml.addRelationEntity(vocabulary, getMappedName(object), sourceIri, targetIri,
 				false, false, false, false, false, false, false);
-		Util.setSemanticFlags(classIRI, entity);
+		Util.setSemanticFlags(classIRI, entity, e2o.context);
 		
-		String forwardName = RelationshipUtil.getInstance().getForwardName(object,classIRI);
+		String forwardName = e2o.context.relationUtil.getForwardName(object,classIRI);
 		if (!forwardName.isEmpty()) {
 			oml.addForwardRelation(entity, forwardName);
 			LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (forward) => " + forwardName);
 		}
-		String reverseName = RelationshipUtil.getInstance().getReverseName(object,classIRI);
+		String reverseName = e2o.context.relationUtil.getReverseName(object,classIRI);
 		if (!reverseName.isEmpty()) {
 			oml.addReverseRelation(entity, reverseName);
 			LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (reverse) => " + reverseName);

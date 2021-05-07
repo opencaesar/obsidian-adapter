@@ -141,9 +141,9 @@ public class EReferenceHandler implements ConversionHandler{
 		}
 		handleCardinality(vocabulary, oml, object, sourceIri, refIRI, rangeIRI);
 		handleSubsets(object, entity,oml,vocabulary,collections);
-		Util.setSemanticFlags(Util.getIri(object), entity);
+		Util.setSemanticFlags(Util.getIri(object,visitor.context), entity,visitor.context);
 		if (opposite!=null) {
-			Util.setSemanticFlags(Util.getIri(opposite), entity,false);
+			Util.setSemanticFlags(Util.getIri(opposite, visitor.context), entity,false,visitor.context);
 		}
 		return entity;
 	}
@@ -172,20 +172,20 @@ public class EReferenceHandler implements ConversionHandler{
 	}
 	
 	@Override
-	public void postConvert(Vocabulary vocabulary, OmlWriter oml, Map<CollectionKind, Object> collections) {
+	public void postConvert(Vocabulary vocabulary, OmlWriter oml, Map<CollectionKind, Object> collections,Ecore2Oml visitor) {
 		@SuppressWarnings("unchecked")
 		Set<EReference> subSets = (Set<EReference>)collections.get(CollectionKind.SubSets);
 		if (subSets!=null) {
 			subSets.forEach(object -> {
 				EAnnotation subsetAnnotaion = Util.getAnnotation(object, SUBSETS);
 				String subSetRelationName = getRelationShipName(object);
-				String subSetIRI = Util.buildIRIFromClassName(object.getEType().getEPackage(), subSetRelationName);
+				String subSetIRI = Util.buildIRIFromClassName(object.getEType().getEPackage(), subSetRelationName, visitor.context);
 				if (subsetAnnotaion!=null) {
 					subsetAnnotaion.getReferences().forEach(superSet -> {
 						EReference superRef = (EReference)superSet;
 						if (!isFiltered(superRef,collections)) {
 							String superSetRelationName = getRelationShipName(superRef);
-							String superSetIRI = Util.buildIRIFromClassName(superRef.getEType().getEPackage(), superSetRelationName);
+							String superSetIRI = Util.buildIRIFromClassName(superRef.getEType().getEPackage(), superSetRelationName,visitor.context);
 							oml.addSpecializationAxiom(vocabulary, subSetIRI, superSetIRI);
 						}
 					});

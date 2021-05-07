@@ -94,7 +94,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	private void handlersPostProcess() {
 		Set<Entry<Integer, ConversionHandler>> entries = handlers.entrySet();
 		for (Entry<Integer, ConversionHandler> entry : entries) {
-			entry.getValue().postConvert(vocabulary, oml, collections);
+			entry.getValue().postConvert(vocabulary, oml, collections, this);
 		}
 	}
 
