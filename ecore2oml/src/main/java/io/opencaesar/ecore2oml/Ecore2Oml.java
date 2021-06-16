@@ -1,3 +1,20 @@
+/**
+ * 
+ * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml;
 
 import static io.opencaesar.ecore2oml.util.Util.getMappedName;
@@ -38,7 +55,7 @@ import io.opencaesar.ecore2oml.preprocessors.participants.EClassConversionPartic
 import io.opencaesar.ecore2oml.preprocessors.participants.EPackageConversionParticipant;
 import io.opencaesar.ecore2oml.preprocessors.participants.EReferencConversionParticipant;
 import io.opencaesar.oml.Vocabulary;
-import io.opencaesar.oml.util.OmlWriter;
+import io.opencaesar.oml.util.OmlBuilder;
 
 public class Ecore2Oml extends EcoreSwitch<EObject> {
 	
@@ -54,7 +71,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	private Vocabulary vocabulary;
 	private final EPackage ePackage;
 	private final URI outputResourceURI;
-	private final OmlWriter oml;
+	private final OmlBuilder oml;
 	private Set<ConversionPreProcessing> preprocessors = new HashSet<>();
 	private Map<String,EPackage> dependency = new HashMap<>();
 	public ConversionContext context;
@@ -63,7 +80,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	
 	private Map<CollectionKind,Object> collections = new HashMap<>();
 	
-	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlWriter oml, ConversionContext conversionContext) {
+	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlBuilder oml, ConversionContext conversionContext) {
 		this.ePackage = ePackage;
 		this.outputResourceURI = outputResourceURI;
 		this.oml = oml;

@@ -1,9 +1,24 @@
+/**
+ * 
+ * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml.preprocessors.participants;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EAnnotation;
@@ -14,12 +29,14 @@ import org.eclipse.emf.ecore.EReference;
 import io.opencaesar.ecore2oml.ConversionContext;
 import io.opencaesar.ecore2oml.options.Relationship;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
+import io.opencaesar.ecore2oml.preprocessors.ERefGroups;
 import io.opencaesar.ecore2oml.util.Pair;
 import io.opencaesar.ecore2oml.util.Util;
 
 public class EClassConversionParticipant extends ConversionParticipant {
 
 	private static final String SUBSETS = "subsets";
+	private static final String DUPLICATES = "duplicates";
 	
 	@Override
 	public void handle(EObject element, Map<CollectionKind, Object> collections) {
@@ -28,30 +45,79 @@ public class EClassConversionParticipant extends ConversionParticipant {
 			Pair<EReference, EReference> srcAndTarget = getSourceAndTaregt(object, context);
 			addRelation(object, srcAndTarget, collections);
 		}
+		
+		handleRedefineAndDublicates(object,collections);
+	}
+
+	private void handleRedefineAndDublicates(EClass object, Map<CollectionKind, Object> collections) {
+		EAnnotation annotation = Util.getAnnotation(object, DUPLICATES);
+		ERefGroups refGroups = (ERefGroups)collections.get(CollectionKind.RefGroups);
+		if (refGroups==null) {
+			refGroups = new ERefGroups();
+			collections.put(CollectionKind.RefGroups, refGroups);
+		}
+		
+		if (annotation!=null) {
+			EList<EObject> contents = annotation.eContents();
+			for(EObject element : contents) {
+				// elements here can be EOperation , ERef, EAttribute, we handle only ERef
+				if (element instanceof EReference) {
+					handleEReferenceDuplicate(object, (EReference) element,refGroups);
+				} 
+			}
+		}
+	}
+
+	private void handleEReferenceDuplicate(EClass eClass, EReference element, ERefGroups refGroups) {
+		EList<EClass> supers = eClass.getEAllSuperTypes();
+		for (int index = supers.size() -1 ; index >=0 ; index-- ) {
+			EClass superClass = supers.get(index);
+			EReference superRef = getRefByName(superClass, element.getName());
+			if (superRef!=null) {
+				refGroups.add(element,superRef);
+			}
+		}
+	}
+
+	private EReference getRefByName(EClass superClass, String name) {
+		EReference retVal  = getFetaureByNameFromDuplicate(superClass,name);
+		if (retVal==null) {
+			EList<EReference> refs = superClass.getEReferences();
+			for (EReference ref : refs) {
+				if (ref.getName().equals(name)) {
+					return ref;
+				}
+			}
+		}
+		return null;
+	}
+
+	private EReference getFetaureByNameFromDuplicate(EClass superClass, String name) {
+		EAnnotation annotation = Util.getAnnotation(superClass, DUPLICATES);
+		if (annotation!=null) {
+			EList<EObject> contents = annotation.eContents();
+			for (EObject element : contents) {
+				// elements here can be EOperation , ERef, EAttribute, we handle only ERef
+				if (element instanceof EReference) {
+					EReference ref= (EReference)element;
+					if (ref.getName().equals(name)) {
+						return ref;
+					}
+				} 
+			}
+		}
+		return null;
 	}
 
 	@SuppressWarnings("unchecked")
 	private void addRelation(EClass object, Pair<EReference, EReference> srcAndTarget,
 			Map<CollectionKind, Object> collections) {
 		Map<EClass,Pair<EReference, EReference>> relationInfo = (Map<EClass,Pair<EReference, EReference>>)collections.get(CollectionKind.RelationShips);
-		Set<EReference> skipSet = (Set<EReference>)collections.get(CollectionKind.SKIP_EREFERENCES);
 		if (relationInfo==null) {
 			relationInfo = new HashMap<>();
 			collections.put(CollectionKind.RelationShips, relationInfo);
-			skipSet = new HashSet<>();
-			collections.put(CollectionKind.SKIP_EREFERENCES, skipSet);
 		}
 		relationInfo.put(object, srcAndTarget);		
-		addFilteredRefs(skipSet, srcAndTarget.source);
-		addFilteredRefs(skipSet, srcAndTarget.target);
-		
-	}
-
-	private void addFilteredRefs(Set<EReference> skipSet, EReference src) {
-		skipSet.add(src);
-		if (src.getEOpposite()!=null) {
-			skipSet.add(src.getEOpposite());
-		}
 	}
 
 	@Override

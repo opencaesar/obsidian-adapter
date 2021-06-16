@@ -1,3 +1,20 @@
+/**
+ * 
+ * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml.util;
 
 import static io.opencaesar.ecore2oml.util.NameSpaces.DC;
@@ -29,7 +46,7 @@ import io.opencaesar.oml.Member;
 import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.Vocabulary;
-import io.opencaesar.oml.util.OmlWriter;
+import io.opencaesar.oml.util.OmlBuilder;
 
 public class Util {
 	
@@ -84,18 +101,18 @@ public class Util {
 		return retVal[0];
 	}
 	
-	public static void addGeneratedAnnotation(Member object, OmlWriter oml, Vocabulary vocabulary) {
+	public static void addGeneratedAnnotation(Member object, OmlBuilder oml, Vocabulary vocabulary) {
 		Literal generated = oml.createQuotedLiteral(vocabulary, "generated", null, null);
 		oml.addAnnotation(vocabulary, object, DC+"/source", generated);
 	}
 	
-	public static void addLabelAnnotation(Member member, OmlWriter oml, Vocabulary vocabulary) {
+	public static void addLabelAnnotation(Member member, OmlBuilder oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(member.getName().replaceAll("_", ""));
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
 		oml.addAnnotation(vocabulary, member, RDFS+"#label", label);
 	}
 	
-	public static void addLabelAnnotation(ENamedElement object, AnnotatedElement element, OmlWriter oml, Vocabulary vocabulary) {
+	public static void addLabelAnnotation(ENamedElement object, AnnotatedElement element, OmlBuilder oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(object.getName());
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
 		if (element instanceof Vocabulary) {
@@ -105,14 +122,14 @@ public class Util {
 		}
 	}
 	
-	public static void addTitleAnnotationIfNeeded(ENamedElement object, Member member, OmlWriter oml, Vocabulary vocabulary) {
+	public static void addTitleAnnotationIfNeeded(ENamedElement object, Member member, OmlBuilder oml, Vocabulary vocabulary) {
 		if (!object.getName().equals(member.getName())) {
 			Literal label = oml.createQuotedLiteral(vocabulary, object.getName(), null, null);
 			oml.addAnnotation(vocabulary, member, DC+"#title", label);
 		}
 	}
 	
-	static public void addDescriptionAnnotation(ENamedElement element, AnnotatedElement object, OmlWriter oml, Vocabulary vocabulary) {
+	static public void addDescriptionAnnotation(ENamedElement element, AnnotatedElement object, OmlBuilder oml, Vocabulary vocabulary) {
 		EAnnotation genModelAnnotation = element.getEAnnotation(GEN_MODEL);
 		if (genModelAnnotation!=null) {
 			String val = genModelAnnotation.getDetails().get(DOCUMENTATION);
@@ -153,7 +170,7 @@ public class Util {
 		return exists(getMembers(vocabulary), i -> i.getName().equals(name));		
 	}
 	
-	public static String getIri(final ENamedElement object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
+	public static String getIri(final ENamedElement object, Vocabulary vocabulary, OmlBuilder oml,Ecore2Oml e2o) {
 		if (object instanceof EPackage) {
 			return getIri((EPackage) object, e2o.context);
 		} else if (object instanceof EClass) {
@@ -181,7 +198,7 @@ public class Util {
 		return getIri(ePackage, context)+ getSeparator(ePackage)+name;
 	}
 
-	public static String getIri(EClass object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
+	public static String getIri(EClass object, Vocabulary vocabulary, OmlBuilder oml,Ecore2Oml e2o) {
 		final EPackage ePackage = object.getEPackage();  
 		if (ePackage != null) {
 			return qualify(getIri(ePackage, e2o.context)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
@@ -197,7 +214,7 @@ public class Util {
 		return null;
 	}
 
-	public static String getIri(EDataType object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml e2o) {
+	public static String getIri(EDataType object, Vocabulary vocabulary, OmlBuilder oml, Ecore2Oml e2o) {
 		final EPackage ePackage = object.getEPackage();  
 		if (ePackage != null) {
 			return qualify(getIri(ePackage, e2o.context)+ getSeparator(ePackage)+ getMappedName(object), object,vocabulary,oml,e2o);
@@ -210,7 +227,7 @@ public class Util {
 		return getIri(ePackage, context)+ getSeparator(ePackage)+ getMappedName(object);
 	}	
 
-	static private String qualify(String iri, EClassifier object, Vocabulary vocabulary, OmlWriter oml,Ecore2Oml e2o) {
+	static private String qualify(String iri, EClassifier object, Vocabulary vocabulary, OmlBuilder oml,Ecore2Oml e2o) {
 		final String vocabularyIri = getIri(object.getEPackage(), e2o.context);
 		if (!vocabularyIri.equals(vocabulary.getIri())) {
 			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getUri().equals(vocabularyIri))) {

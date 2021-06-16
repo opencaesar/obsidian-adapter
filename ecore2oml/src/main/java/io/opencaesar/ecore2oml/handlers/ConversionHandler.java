@@ -1,3 +1,20 @@
+/**
+ * 
+ * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml.handlers;
 
 import java.util.Map;
@@ -11,20 +28,20 @@ import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.AnnotatedElement;
 import io.opencaesar.oml.Member;
 import io.opencaesar.oml.Vocabulary;
-import io.opencaesar.oml.util.OmlWriter;
+import io.opencaesar.oml.util.OmlBuilder;
 
 public interface ConversionHandler {
 	
 
-	public EObject doConvert(EObject object, Vocabulary vocabulary, OmlWriter oml,
+	public EObject doConvert(EObject object, Vocabulary vocabulary, OmlBuilder oml,
 			Map<CollectionKind, Object> collections,Ecore2Oml visitor) ;
 	
-	default public void postConvert(Vocabulary vocabulary, OmlWriter oml,
+	default public void postConvert(Vocabulary vocabulary, OmlBuilder oml,
 			Map<CollectionKind, Object> collections,Ecore2Oml visitor) {
 		// No OP
 	}
 	
-	default public EObject convert(EObject object, Vocabulary vocabulary, OmlWriter oml,
+	default public EObject convert(EObject object, Vocabulary vocabulary, OmlBuilder oml,
 			Map<CollectionKind, Object> collections,Ecore2Oml visitor) {
 		EObject retVal = doConvert(object, vocabulary, oml, collections, visitor);
 		if (object instanceof ENamedElement && retVal instanceof AnnotatedElement) {

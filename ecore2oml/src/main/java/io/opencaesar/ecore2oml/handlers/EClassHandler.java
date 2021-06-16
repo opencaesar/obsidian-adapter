@@ -1,3 +1,20 @@
+/**
+ * 
+ * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml.handlers;
 
 import static io.opencaesar.ecore2oml.util.Util.getIri;
@@ -26,15 +43,11 @@ import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.CardinalityRestrictionKind;
 import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
-import io.opencaesar.oml.InverseSourceRelation;
-import io.opencaesar.oml.InverseTargetRelation;
+import io.opencaesar.oml.Predicate;
 import io.opencaesar.oml.RangeRestrictionKind;
 import io.opencaesar.oml.RelationEntity;
-import io.opencaesar.oml.SourceRelation;
-import io.opencaesar.oml.TargetRelation;
 import io.opencaesar.oml.Vocabulary;
-import io.opencaesar.oml.util.OmlRead;
-import io.opencaesar.oml.util.OmlWriter;
+import io.opencaesar.oml.util.OmlBuilder;
 
 public class EClassHandler implements ConversionHandler {
 
@@ -46,7 +59,7 @@ public class EClassHandler implements ConversionHandler {
 	static private Logger LOGGER = LogManager.getLogger(EClassHandler.class);
 
 	@Override
-	public EObject doConvert(EObject eObject, Vocabulary vocabulary, OmlWriter oml,
+	public EObject doConvert(EObject eObject, Vocabulary vocabulary, OmlBuilder oml,
 			Map<CollectionKind, Object> collections,Ecore2Oml visitor) {
 		EClass object = (EClass) eObject;
 		Pair<EReference, EReference> srcAndTarget=null;
@@ -65,20 +78,20 @@ public class EClassHandler implements ConversionHandler {
 		EAnnotation annotation = Util.getAnnotation(object, DUPLICATES);
 		boolean isDuplicate = annotation == null ? false : true;
 		Entity entity = null;
-		if (isRelationship) {
-			entity = convertEClassToRelationEntity(object,srcAndTarget, oml, vocabulary,visitor);
-		} else if (Util.defaultsToAspect(object)) {
+		if (Util.defaultsToAspect(object)) {
 			entity = oml.addAspect(vocabulary, getMappedName(object));
 		} else if (isForcedAspect){
 			entity = oml.addAspect(vocabulary, getMappedName(object));
 			createSubElementsOfForcedAspect(entity,object,vocabulary,oml,visitor);
-		}else {
+		} else if (isRelationship) {
+			entity = convertEClassToRelationEntity(object,srcAndTarget, oml, vocabulary,visitor);
+		} else {
 			entity = oml.addConcept(vocabulary, getMappedName(object));
 		}
 		for (EClass eSuperType : object.getESuperTypes()) {
 			String superIri = getIri(eSuperType, vocabulary, oml,visitor);
 			if (superIri != null) {
-				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(entity), superIri);
+				oml.addSpecializationAxiom(vocabulary, entity.getIri(), superIri);
 			}
 		}
 		if (isDuplicate) {
@@ -88,7 +101,7 @@ public class EClassHandler implements ConversionHandler {
 		return entity;
 	}
 
-	private void createSubElementsOfForcedAspect(Entity entity, EClass object, Vocabulary vocabulary, OmlWriter oml, Ecore2Oml visitor) {
+	private void createSubElementsOfForcedAspect(Entity entity, EClass object, Vocabulary vocabulary, OmlBuilder oml, Ecore2Oml visitor) {
 		Aspect aspectInfo = visitor.context.aspectUtil.getAspectInfo(object,visitor.context);
 		List<EClass> eSuperTypes = object.getESuperTypes().stream().filter(a -> visitor.context.aspectUtil.basicIsAspect(a,visitor.context)).collect(Collectors.toList());
 		
@@ -96,15 +109,15 @@ public class EClassHandler implements ConversionHandler {
 			// create the sub class concept
 			String name = getMappedName(object) + CONCEPT_POSTFIX;
 			Concept conceptEntity = oml.addConcept(vocabulary,name);
-			String superIri = OmlRead.getIri(entity) ;
+			String superIri = entity.getIri() ;
 			if (superIri != null) {
-				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(conceptEntity), superIri);
+				oml.addSpecializationAxiom(vocabulary, conceptEntity.getIri(), superIri);
 			}
 			for (EClass superType : eSuperTypes) {
 				superIri = getIri(superType, vocabulary, oml,visitor);
 				Aspect superAspectInfo = visitor.context.aspectUtil.getAspectInfo(superIri);
 				if (superAspectInfo != null && superAspectInfo.concept !=null && superAspectInfo.concept.subConcept) {
-					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(conceptEntity), superIri + CONCEPT_POSTFIX);
+					oml.addSpecializationAxiom(vocabulary, conceptEntity.getIri(), superIri + CONCEPT_POSTFIX);
 				}
 			}
 			Util.addLabelAnnotation(conceptEntity, oml, vocabulary);
@@ -113,22 +126,22 @@ public class EClassHandler implements ConversionHandler {
 			String name = getMappedName(object) + RELATION_POSTFIX;
 			RelationEntity relEntity = oml.addRelationEntity(vocabulary, name, aspectInfo.relation.from,aspectInfo.relation.to,
 					false, false, false, false, false, false, false);
-			String superIri = OmlRead.getIri(entity);
+			String superIri = entity.getIri();
 			if (superIri != null) {
-				oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(relEntity), superIri);
+				oml.addSpecializationAxiom(vocabulary, relEntity.getIri(), superIri);
 			}
 			for (EClass superType : eSuperTypes) {
 				superIri = getIri(superType, vocabulary, oml,visitor) ;
 				Aspect superAspectInfo = visitor.context.aspectUtil.getAspectInfo(superIri);
 				if (superAspectInfo != null && superAspectInfo.relation !=null) {
-					oml.addSpecializationAxiom(vocabulary, OmlRead.getIri(relEntity), superIri + RELATION_POSTFIX);
+					oml.addSpecializationAxiom(vocabulary, relEntity.getIri(), superIri + RELATION_POSTFIX);
 				}
 			}
 			Util.addLabelAnnotation(relEntity, oml, vocabulary);
 		}
 	}
 
-	private void handleDuplicate(EClass object, Entity entity, EAnnotation annotation, OmlWriter oml,
+	private void handleDuplicate(EClass object, Entity entity, EAnnotation annotation, OmlBuilder oml,
 			Vocabulary vocabulary,Ecore2Oml e2o) {
 		annotation.eContents().forEach(element -> {
 			// elements here can be EOperation , ERef, EAttribute, we handle only ERef and EAttribute
@@ -157,13 +170,13 @@ public class EClassHandler implements ConversionHandler {
 	}
 
 	private void handleRetrictions(EAnnotation annotation, Entity entity, EStructuralFeature element, EClassifier type,
-			boolean isRef, OmlWriter oml, Vocabulary vocabulary,Ecore2Oml e2o) {
+			boolean isRef, OmlBuilder oml, Vocabulary vocabulary,Ecore2Oml e2o) {
 		EStructuralFeature original = (EStructuralFeature) getOriginal(element);
 		int upper = element.getUpperBound();
 		int lower = element.getLowerBound();
 		int oUpper = original.getUpperBound();
 		int oLower = original.getLowerBound();
-		String entityIRI = OmlRead.getIri(entity);
+		String entityIRI = entity.getIri();
 		String relationOrPropIRI = getIri(original, vocabulary, oml,e2o);
 		if (upper != oUpper) {
 			if (element instanceof EReference) {
@@ -205,12 +218,12 @@ public class EClassHandler implements ConversionHandler {
 
 	}
 
-	private void handleEAttributeDuplicate(EAnnotation annotation, Entity entity, EAttribute element, OmlWriter oml,
+	private void handleEAttributeDuplicate(EAnnotation annotation, Entity entity, EAttribute element, OmlBuilder oml,
 			Vocabulary vocabulary,Ecore2Oml e2o) {
 		handleRetrictions(annotation, entity, element, element.getEType(), false, oml, vocabulary, e2o);
 	}
 
-	private void handleEReferenceDuplicate(EAnnotation annotation, Entity entity, EReference element, OmlWriter oml,
+	private void handleEReferenceDuplicate(EAnnotation annotation, Entity entity, EReference element, OmlBuilder oml,
 			Vocabulary vocabulary,Ecore2Oml e2o) {
 		EClassifier type = element.getEType();
 		EAnnotation typeAnnotation = Util.getAnnotation(annotation, element.getName());
@@ -225,7 +238,7 @@ public class EClassHandler implements ConversionHandler {
 		handleRetrictions(annotation, entity, element, type, true, oml, vocabulary, e2o);
 	}
 
-	static private RelationEntity convertEClassToRelationEntity(EClass object, Pair<EReference, EReference> srcAndTarget, OmlWriter oml, Vocabulary vocabulary,Ecore2Oml e2o) {
+	static private RelationEntity convertEClassToRelationEntity(EClass object, Pair<EReference, EReference> srcAndTarget, OmlBuilder oml, Vocabulary vocabulary,Ecore2Oml e2o) {
 		String classIRI = Util.getIri(object,vocabulary,oml,e2o); 
 		final String sourceIri = getIri(srcAndTarget.source.getEType(),vocabulary,oml,e2o);
 		final String targetIri = getIri(srcAndTarget.target.getEType(),vocabulary,oml, e2o);
@@ -243,42 +256,17 @@ public class EClassHandler implements ConversionHandler {
 			oml.addReverseRelation(entity, reverseName);
 			LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (reverse) => " + reverseName);
 		}
-		if (object == srcAndTarget.source.getEContainingClass()) {
-			String sourceName = getMappedName(srcAndTarget.source);
-			if (!sourceName.isEmpty()) {
-				SourceRelation sourceRelation = oml.addSourceRelation(entity, sourceName);
-				Util.addTitleAnnotationIfNeeded(srcAndTarget.source, sourceRelation, oml, vocabulary);
-				Util.addLabelAnnotation(srcAndTarget.source, sourceRelation, oml, vocabulary);
-				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (source) => " + sourceName);
-			}
-			if (srcAndTarget.source.getEOpposite() != null) {
-				String inverseSourceName = getMappedName(srcAndTarget.source.getEOpposite());
-				if (!inverseSourceName.isEmpty()) {
-					InverseSourceRelation rel = oml.addInverseSourceRelation(entity, inverseSourceName);
-					Util.addTitleAnnotationIfNeeded(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
-					Util.addLabelAnnotation(srcAndTarget.source.getEOpposite(), rel, oml, vocabulary);
-					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse source) => " + inverseSourceName);
-				}
-			}
-		}
-		if (object == srcAndTarget.target.getEContainingClass()) {
-			String targetName = getMappedName(srcAndTarget.target);
-			if (!targetName.isEmpty()) {
-				TargetRelation targetRelation = oml.addTargetRelation(entity, targetName);
-				Util.addTitleAnnotationIfNeeded(srcAndTarget.target, targetRelation, oml, vocabulary);
-				Util.addLabelAnnotation(srcAndTarget.target, targetRelation, oml, vocabulary);
-				LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (target) => " + targetName);
-			}
-			if (srcAndTarget.target.getEOpposite() != null) {
-				String inverseTargetName = getMappedName(srcAndTarget.target.getEOpposite());
-				if (!inverseTargetName.isEmpty()) {
-					InverseTargetRelation rel = oml.addInverseTargetRelation(entity, inverseTargetName);
-					Util.addTitleAnnotationIfNeeded(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
-					Util.addLabelAnnotation(srcAndTarget.target.getEOpposite(), rel, oml, vocabulary);
-					LOGGER.debug(Util.getIri(object,vocabulary,oml,e2o) + " => (inverse target) => " + inverseTargetName);
-				}
-			}
-		}
+		
+		
+		Predicate[] antecedent = {
+				oml.createRelationEntityPredicate(vocabulary, classIRI, "s", "r", "t")
+		};
+		Predicate[] consequent = {
+				oml.createRelationPredicate(vocabulary, getIri(srcAndTarget.source,vocabulary,oml,e2o), "r", "s"),
+				oml.createRelationPredicate(vocabulary, getIri(srcAndTarget.target,vocabulary,oml,e2o), "r", "t")
+		};
+		oml.addRule(vocabulary, object.getName()+"_Rule", consequent, antecedent);
+		
 		return entity;
 	}
 }
