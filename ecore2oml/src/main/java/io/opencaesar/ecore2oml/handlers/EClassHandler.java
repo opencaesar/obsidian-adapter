@@ -262,8 +262,8 @@ public class EClassHandler implements ConversionHandler {
 				oml.createRelationEntityPredicate(vocabulary, classIRI, "s", "r", "t")
 		};
 		Predicate[] consequent = {
-				oml.createRelationPredicate(vocabulary, getIri(srcAndTarget.source,vocabulary,oml,e2o), "r", "s"),
-				oml.createRelationPredicate(vocabulary, getIri(srcAndTarget.target,vocabulary,oml,e2o), "r", "t")
+				oml.createFeaturePredicate(vocabulary, getIri(srcAndTarget.source,vocabulary,oml,e2o), "r", "s"),
+				oml.createFeaturePredicate(vocabulary, getIri(srcAndTarget.target,vocabulary,oml,e2o), "r", "t")
 		};
 		oml.addRule(vocabulary, object.getName()+"_Rule", consequent, antecedent);
 		

@@ -19,9 +19,6 @@ package io.opencaesar.ecore2oml;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,13 +47,12 @@ import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.google.common.io.CharStreams;
 import com.google.inject.Injector;
 
 import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.dsl.OmlStandaloneSetup;
-import io.opencaesar.oml.util.OmlCatalog;
 import io.opencaesar.oml.util.OmlBuilder;
+import io.opencaesar.oml.util.OmlCatalog;
 
 public class Ecore2OmlApp {
 
@@ -155,8 +151,7 @@ public class Ecore2OmlApp {
 		OmlStandaloneSetup.doSetup();
 		final XtextResourceSet outputResourceSet = new XtextResourceSet();
 
-		final URL catalogURL = new File(outputCatalogPath).toURI().toURL();
-		final OmlCatalog catalog = OmlCatalog.create(catalogURL);
+		final OmlCatalog catalog = OmlCatalog.create(URI.createFileURI(outputCatalogPath));
 		ConversionContext conversionContext = new ConversionContext();		
 		if (optionsPath!=null) {
 			conversionContext.setOptions(optionsPath);
@@ -263,16 +258,8 @@ public class Ecore2OmlApp {
 	 * @return version string from build.properties or UNKNOWN
 	 */
 	private String getAppVersion() {
-		String version = "UNKNOWN";
-		try {
-			final InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream("version.txt");
-			final InputStreamReader reader = new InputStreamReader(input);
-			version = CharStreams.toString(reader);
-		} catch (IOException e) {
-			final String errorMsg = "Could not read version.txt file." + e;
-			LOGGER.error(errorMsg, e);
-		}
-		return version;
+    	var version = this.getClass().getPackage().getImplementationVersion();
+    	return (version != null) ? version : "<SNAPSHOT>";
 	}
 
 	static public class InputFolderPath implements IParameterValidator {
