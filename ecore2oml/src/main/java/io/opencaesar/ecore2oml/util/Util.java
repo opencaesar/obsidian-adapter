@@ -17,9 +17,6 @@
  */
 package io.opencaesar.ecore2oml.util;
 
-import static io.opencaesar.ecore2oml.util.NameSpaces.DC;
-import static io.opencaesar.ecore2oml.util.NameSpaces.OML;
-import static io.opencaesar.ecore2oml.util.NameSpaces.RDFS;
 import static io.opencaesar.oml.util.OmlRead.getMembers;
 import static org.eclipse.xtext.xbase.lib.IterableExtensions.exists;
 
@@ -47,6 +44,7 @@ import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlBuilder;
+import io.opencaesar.oml.util.OmlConstants;
 
 public class Util {
 	
@@ -74,7 +72,7 @@ public class Util {
 	
 	public static String getAnnotationValue(EModelElement object, AnnotationKind kind) {
 		final Optional<EAnnotation> annotation = object.getEAnnotations().stream().
-			filter(i -> OML.equals(i.getSource())).findFirst();
+			filter(i -> OmlConstants.OML_IRI.equals(i.getSource())).findFirst();
 		if (annotation.isPresent()) {
 			return annotation.get().getDetails().get(kind.toString());
 		}
@@ -103,29 +101,34 @@ public class Util {
 	
 	public static void addGeneratedAnnotation(Member object, OmlBuilder oml, Vocabulary vocabulary) {
 		Literal generated = oml.createQuotedLiteral(vocabulary, "generated", null, null);
-		oml.addAnnotation(vocabulary, object, DC+"/source", generated);
+		oml.addAnnotation(vocabulary, object, OmlConstants.DC_NS+"source", generated);
+		addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.DC_IRI, SeparatorKind.SLASH, OmlConstants.DC_PREFIX, oml);
 	}
 	
 	public static void addLabelAnnotation(Member member, OmlBuilder oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(member.getName().replaceAll("_", ""));
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
-		oml.addAnnotation(vocabulary, member, RDFS+"#label", label);
+		oml.addAnnotation(vocabulary, member, OmlConstants.RDFS_NS+"label", label);
+		addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.RDFS_IRI, SeparatorKind.HASH, OmlConstants.RDFS_PREFIX, oml);
 	}
 	
 	public static void addLabelAnnotation(ENamedElement object, AnnotatedElement element, OmlBuilder oml, Vocabulary vocabulary) {
 		String splitted = splitCamelCase(object.getName());
 		Literal label = oml.createQuotedLiteral(vocabulary, splitted, null, null);
 		if (element instanceof Vocabulary) {
-			oml.addAnnotation((Vocabulary)element, RDFS+"#label", label);
+			oml.addAnnotation((Vocabulary)element, OmlConstants.RDFS_NS+"label", label);
+			addVocabularyExtensionIfNeeded((Vocabulary)element, OmlConstants.RDFS_IRI, SeparatorKind.HASH, OmlConstants.RDFS_PREFIX, oml);
 		} else {
-			oml.addAnnotation(vocabulary, element, RDFS+"#label", label);
+			oml.addAnnotation(vocabulary, element, OmlConstants.RDFS_NS+"label", label);
+			addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.RDFS_IRI, SeparatorKind.HASH, OmlConstants.RDFS_PREFIX, oml);
 		}
 	}
 	
 	public static void addTitleAnnotationIfNeeded(ENamedElement object, Member member, OmlBuilder oml, Vocabulary vocabulary) {
 		if (!object.getName().equals(member.getName())) {
 			Literal label = oml.createQuotedLiteral(vocabulary, object.getName(), null, null);
-			oml.addAnnotation(vocabulary, member, DC+"#title", label);
+			oml.addAnnotation(vocabulary, member, OmlConstants.DC_NS+"title", label);
+			addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.DC_IRI, SeparatorKind.SLASH, OmlConstants.DC_PREFIX, oml);
 		}
 	}
 	
@@ -135,7 +138,8 @@ public class Util {
 			String val = genModelAnnotation.getDetails().get(DOCUMENTATION);
 			if (val!=null && !val.isBlank()) {
 				Literal value = oml.createQuotedLiteral(vocabulary, val, null, null);
-				oml.addAnnotation(vocabulary, object, DC+"#description", value);
+				oml.addAnnotation(vocabulary, object, OmlConstants.DC_NS+"description", value);
+				addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.DC_IRI, SeparatorKind.SLASH, OmlConstants.DC_PREFIX, oml);
 			}
 		}
 	}
@@ -193,6 +197,13 @@ public class Util {
 		return context.uriMapper.getMappedIRI(nsURI);
 	}	
 	
+	static public String getSeparatorChar(EPackage object) {
+		String nsURI = object.getNsURI();
+		if (nsURI.endsWith("#") || nsURI.endsWith("/")) {
+			return nsURI.substring( nsURI.length()-1, nsURI.length());
+		}
+		return SeparatorKind.HASH.toString();
+	}	
 	
 	public static String buildIRIFromClassName(EPackage ePackage, String name, ConversionContext context) {
 		return getIri(ePackage, context)+ getSeparator(ePackage)+name;
@@ -229,10 +240,11 @@ public class Util {
 
 	static private String qualify(String iri, EClassifier object, Vocabulary vocabulary, OmlBuilder oml,Ecore2Oml e2o) {
 		final String vocabularyIri = getIri(object.getEPackage(), e2o.context);
+		final SeparatorKind vocabularySeparator = getSeparator(object.getEPackage());
+		final String vocabularyPrefix = getPrefix(object.getEPackage());
 		if (!vocabularyIri.equals(vocabulary.getIri())) {
-			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getUri().equals(vocabularyIri))) {
-				oml.addVocabularyExtension(vocabulary, vocabularyIri, null);
-				e2o.addExternalDepenedncy(vocabularyIri,object.getEPackage());
+			if (addVocabularyExtensionIfNeeded(vocabulary, vocabularyIri, vocabularySeparator, vocabularyPrefix, oml)) {
+				e2o.addExternalDepenedncy(vocabularyIri, object.getEPackage());
 			}
 		}
 		return iri;
@@ -273,5 +285,18 @@ public class Util {
 				break;
 			}
 		}
+	}
+
+	static public boolean addVocabularyExtensionIfNeeded(Vocabulary context, String importIri, SeparatorKind separator, String importPrefix, OmlBuilder oml) {
+		if (!context.getIri().equals(importIri)) {
+			boolean imported = context.getOwnedImports().stream()
+				.filter(i -> i.getIri().equals(importIri))
+				.findFirst().isPresent();
+			if (!imported) {
+				oml.addVocabularyExtension(context, importIri, separator, importPrefix);
+				return true;
+			}
+		}
+		return false;
 	}
 }

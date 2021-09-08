@@ -17,8 +17,6 @@
  */
 package io.opencaesar.ecore2oml.handlers;
 
-import static io.opencaesar.ecore2oml.util.NameSpaces.OWL;
-
 import java.util.Map;
 
 import org.eclipse.emf.common.util.URI;
@@ -51,7 +49,6 @@ public class EPackageHandler implements ConversionHandler {
 		
 		vocabulary = oml.createVocabulary(outputResourceURI, iri, separator, pefix);
 		visitor.setVocabulary(vocabulary);
-		oml.addVocabularyExtension(vocabulary, OWL, null);
 		object.getEClassifiers().stream().forEach(c -> visitor.doSwitch(c));
 		return vocabulary;
 	}

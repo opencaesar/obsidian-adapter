@@ -1,6 +1,6 @@
 # OML Adapter for Ecore
 
-[![Build Status](https://travis-ci.com/opencaesar/ecore-adapter.svg?branch=master)](https://travis-ci.com/opencaesar/ecore-adapter)
+[![Build Status](https://app.travis-ci.com/opencaesar/ecore-adapter.svg?branch=master)](https://app.travis-ci.com/github/opencaesar/ecore-adapter)
 [![Release](https://img.shields.io/github/v/tag/opencaesar/ecore-adapter?label=release)](https://github.com/opencaesar/ecore-adapter/releases/latest)
 
 An [OML](https://opencaesar.github.io/oml) adapter for [Ecore](https://www.eclipse.org/modeling/emf/)

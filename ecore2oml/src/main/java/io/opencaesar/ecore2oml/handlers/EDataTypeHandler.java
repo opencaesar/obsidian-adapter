@@ -24,11 +24,12 @@ import org.eclipse.emf.ecore.EObject;
 
 import io.opencaesar.ecore2oml.Ecore2Oml;
 import io.opencaesar.ecore2oml.preprocessors.CollectionKind;
-import io.opencaesar.ecore2oml.util.IRIConstants;
 import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.FacetedScalar;
+import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlBuilder;
+import io.opencaesar.oml.util.OmlConstants;
 
 public class EDataTypeHandler implements ConversionHandler{
 
@@ -55,8 +56,9 @@ public class EDataTypeHandler implements ConversionHandler{
 				base = "string";
 				break;
 		}
-		String baseIRI = IRIConstants.XSD_IRI + base;
+		String baseIRI = OmlConstants.XSD_NS + base;
 		oml.addSpecializationAxiom(vocabulary, scalar.getIri(), baseIRI);
+		Util.addVocabularyExtensionIfNeeded(vocabulary, OmlConstants.XSD_IRI, SeparatorKind.HASH, OmlConstants.XSD_PREFIX, oml);
 		return scalar;
 	}
 
