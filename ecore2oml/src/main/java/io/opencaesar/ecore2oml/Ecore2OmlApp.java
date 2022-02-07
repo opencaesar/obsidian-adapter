@@ -56,7 +56,7 @@ import io.opencaesar.oml.util.OmlCatalog;
 
 public class Ecore2OmlApp {
 
-	static final String OML_EXTENSION = "oml";
+	public static final String OML_EXTENSION = "oml";
 
 	@Parameter(
 		names= {"--input-folder-path","-i"}, 
