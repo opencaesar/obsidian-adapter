@@ -28,7 +28,7 @@ buildscript {
 		mavenCentral()
 	}
 	dependencies {
-		classpath 'io.opencaesar.ecore:ecore2oml-gradle:+'
+		classpath 'io.opencaesar.adapters:ecore2oml-gradle:+'
 	}
 }
 task ecore2oml(type:io.opencaesar.ecore2oml.Ecore2OmlTask) {
