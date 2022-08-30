@@ -12,11 +12,9 @@ import org.eclipse.emf.common.util.URI;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
-import org.gradle.api.file.DirectoryProperty;
-import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFiles;
 import org.gradle.api.tasks.TaskAction;
@@ -24,58 +22,53 @@ import org.gradle.api.tasks.TaskExecutionException;
 import org.gradle.work.Incremental;
 
 import io.opencaesar.oml.util.OmlCatalog;
+import io.opencaesar.oml.util.OmlConstants;
 
 public abstract class Ecore2OmlTask extends DefaultTask {
-	
-    @Incremental
-    @InputDirectory
-    protected abstract DirectoryProperty getInputFolderPath();
 
-	private String outputCatalogPath = null;
-	
 	@Input
-	public String getOutputCatalogPath() { return outputCatalogPath; }
+    public abstract Property<File> getInputFolderPath();
 
-    public void setOutputCatalogPath(String s) {
+	@Input
+    public abstract Property<File> getOutputCatalogPath();
+
+    @Optional
+    @Input
+    public abstract Property<Boolean> getDebug();
+
+	@Incremental
+	@InputFiles
+    @SuppressWarnings("deprecation")
+    protected ConfigurableFileCollection getInputFiles() {
     	try {
-    		outputCatalogPath = s;
-    		Collection<File> files = new ArrayList<>();
-	    	files.add(new File(s));
-    		if (new File(s).exists()) {
-	    		final OmlCatalog inputCatalog = OmlCatalog.create(URI.createFileURI(s));
-	    		files.addAll(collectOmlFiles(inputCatalog));
-    		}
-	    	getOutputFiles().from(files);
+    		return getProject().files(collectEcoreFiles(getInputFolderPath().get()));
+    	} catch (Exception e) {
+			throw new GradleException(e.getLocalizedMessage(), e);
+    	}
+    }
+    
+   @OutputFiles
+   @SuppressWarnings("deprecation")
+   protected ConfigurableFileCollection getOutputFiles() {
+    	try {
+    		return getProject().files(collectOmlFiles(getOutputCatalogPath().get().getParentFile()));
     	} catch (Exception e) {
 			throw new GradleException(e.getLocalizedMessage(), e);
     	}
     }
 
-    @OutputFiles
-    protected abstract ConfigurableFileCollection getOutputFiles();
-
-    @Optional
-    @InputFile
-	public abstract RegularFileProperty getOptionsFilePath();
-
-	public boolean debug;
-
-    @TaskAction
+	@TaskAction
     public void run() {
         List<String> args = new ArrayList<String>();
         if (getInputFolderPath().isPresent()) {
 		    args.add("-i");
-		    args.add(getInputFolderPath().get().getAsFile().getAbsolutePath());
+		    args.add(getInputFolderPath().get().getAbsolutePath());
         }
-        if (outputCatalogPath != null) {
+        if (getOutputCatalogPath().isPresent()) {
 		    args.add("-o");
-		    args.add(outputCatalogPath);
+		    args.add(getOutputCatalogPath().get().getAbsolutePath());
         }
-        if (getOptionsFilePath().isPresent()) {
-		    args.add("-op");
-		    args.add(getOptionsFilePath().get().getAsFile().getAbsolutePath());
-        }
-	    if (debug) {
+		if (getDebug().isPresent() && getDebug().get()) {
 		    args.add("-d");
 	    }
 	    try {
@@ -112,14 +105,29 @@ public abstract class Ecore2OmlTask extends DefaultTask {
 				omlFiles.addAll(collectOmlFiles(file));
 			} else if (file.isFile()) {
 				String ext = getFileExtension(file);
-				if (Ecore2OmlApp.OML_EXTENSION.equals(ext)) {
+				if (OmlConstants.OML_EXTENSION.equals(ext)) {
 					omlFiles.add(file);
 				}
 			} else { // must be a file name with no extension
-				File f = new File(path.toString()+'.'+Ecore2OmlApp.OML_EXTENSION);
+				File f = new File(path.toString()+'.'+OmlConstants.OML_EXTENSION);
 				if (f.exists()) {
 					omlFiles.add(f);
 				}
+			}
+		}
+		return omlFiles;
+	}
+
+	private Collection<File> collectEcoreFiles(File directory) {
+		final List<File> omlFiles = new ArrayList<File>();
+		for (File file : directory.listFiles()) {
+			if (file.isFile()) {
+				final String ext = getFileExtension(file);
+				if (ext.equals("ecore") || ext.equals("xcore")) {
+					omlFiles.add(file);
+				}
+			} else if (file.isDirectory()) {
+				omlFiles.addAll(collectEcoreFiles(file));
 			}
 		}
 		return omlFiles;

@@ -547,7 +547,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	}
 
 	private String getEnumerationLiteralName(EEnumLiteral object) {
-		return object.getName();
+		return object.getLiteral();
 	}
 
 	private String getFacetedScalarName(EDataType object) {
@@ -564,14 +564,6 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 	private String getRelationName(EReference object) {
 		return object.getEContainingClass().getName() + "_"  + object.getName();
-	}
-
-	private String toFirstUpper(String name) {
-		return name.substring(0, 1).toUpperCase() + name.substring(1);
-	}
-	
-	private String toFirstLower(String name) {
-		return name.substring(0, 1).toLowerCase() + name.substring(1);
 	}
 
 }

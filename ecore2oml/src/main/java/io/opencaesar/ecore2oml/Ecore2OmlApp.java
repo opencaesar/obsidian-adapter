@@ -57,10 +57,9 @@ import io.opencaesar.oml.resource.OmlJsonResourceFactory;
 import io.opencaesar.oml.resource.OmlXMIResourceFactory;
 import io.opencaesar.oml.util.OmlBuilder;
 import io.opencaesar.oml.util.OmlCatalog;
+import io.opencaesar.oml.util.OmlConstants;
 
 public class Ecore2OmlApp {
-
-	public static final String OML_EXTENSION = "oml";
 
 	@Parameter(
 		names= {"--input-folder-path","-i"}, 
@@ -171,7 +170,7 @@ public class Ecore2OmlApp {
 					EObject content = i.next();
 					if (content instanceof EPackage) {
 						EPackage ePackage = (EPackage) content;
-						final String relativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OML_EXTENSION;
+						final String relativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OmlConstants.OML_EXTENSION;
 						final URI outputResourceURI = URI.createURI(relativePath);
 						LOGGER.info("Creating: "+outputResourceURI);
 						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, builder);
@@ -191,7 +190,7 @@ public class Ecore2OmlApp {
 		
 		while (!dependency.isEmpty()) {
 			for (Entry<String, EPackage> iri: dependency.entrySet()) {
-				String ecoreRelativePath =  catalog.resolveURI(iri.getKey()) +"."+OML_EXTENSION;
+				String ecoreRelativePath =  catalog.resolveURI(iri.getKey()) +"."+OmlConstants.OML_EXTENSION;
 				URI ecoreResourceURI = URI.createURI(ecoreRelativePath);
 				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, builder);				
 				e2o.run();
