@@ -39,6 +39,9 @@ import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.resource.ResourceSet;
+import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
+import org.eclipse.emf.ecore.util.ECrossReferenceAdapter;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xcore.XcoreStandaloneSetup;
 import org.eclipse.xtext.resource.XtextResourceSet;
@@ -49,8 +52,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.google.inject.Injector;
 
-import io.opencaesar.ecore2oml.util.Util;
 import io.opencaesar.oml.dsl.OmlStandaloneSetup;
+import io.opencaesar.oml.resource.OmlJsonResourceFactory;
+import io.opencaesar.oml.resource.OmlXMIResourceFactory;
 import io.opencaesar.oml.util.OmlBuilder;
 import io.opencaesar.oml.util.OmlCatalog;
 
@@ -74,13 +78,6 @@ public class Ecore2OmlApp {
 		order=2
 	)
 	private String outputCatalogPath;
-	
-	@Parameter(
-		names= {"--options", "-op"}, 
-		description="Location of the options (.json) file (Optional)",  
-		order=3
-	)
-	private String optionsPath;
 	
 	@Parameter(
 		names= {"--debug", "-d"}, 
@@ -129,7 +126,6 @@ public class Ecore2OmlApp {
 		LOGGER.info("=================================================================");
 		LOGGER.info("Input Folder Path= " + inputFolderPath);
 		LOGGER.info("Output Catalog Path= " + outputCatalogPath);
-		LOGGER.info("Options Path= " + optionsPath);
 		
 		final File inputFolder = new File(inputFolderPath);
 		final Collection<File> inputFiles = collectEcoreFiles(inputFolder);
@@ -149,14 +145,12 @@ public class Ecore2OmlApp {
 
 		// load the Oml registries here after the input have been read
 		OmlStandaloneSetup.doSetup();
-		final XtextResourceSet outputResourceSet = new XtextResourceSet();
+		OmlXMIResourceFactory.register();
+		OmlJsonResourceFactory.register();
+		final ResourceSet outputResourceSet = new ResourceSetImpl();
+		outputResourceSet.eAdapters().add(new ECrossReferenceAdapter());
 
-		final OmlCatalog catalog = OmlCatalog.create(URI.createFileURI(outputCatalogPath));
-		ConversionContext conversionContext = new ConversionContext();		
-		if (optionsPath!=null) {
-			conversionContext.setOptions(optionsPath);
-		}
-		
+		final OmlCatalog catalog = OmlCatalog.create(URI.createFileURI(outputCatalogPath));		
 
 		// create the Oml builder
 		final OmlBuilder builder = new OmlBuilder(outputResourceSet);
@@ -180,11 +174,11 @@ public class Ecore2OmlApp {
 						final String relativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OML_EXTENSION;
 						final URI outputResourceURI = URI.createURI(relativePath);
 						LOGGER.info("Creating: "+outputResourceURI);
-						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, builder,conversionContext);
+						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, builder);
 						e2o.run();
 						dependency.putAll(e2o.getDependencies());
 						outputResourceURIs.add (outputResourceURI);
-						String iri = Util.getIri(ePackage, conversionContext);
+						String iri = ePackage.getNsURI();
 						handled.add(iri);
 					}
 				}
@@ -199,7 +193,7 @@ public class Ecore2OmlApp {
 			for (Entry<String, EPackage> iri: dependency.entrySet()) {
 				String ecoreRelativePath =  catalog.resolveURI(iri.getKey()) +"."+OML_EXTENSION;
 				URI ecoreResourceURI = URI.createURI(ecoreRelativePath);
-				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, builder,conversionContext);				
+				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, builder);				
 				e2o.run();
 				dependency.putAll(e2o.getDependencies());
 				outputResourceURIs.add (ecoreResourceURI);
