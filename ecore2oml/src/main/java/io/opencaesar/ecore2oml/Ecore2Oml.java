@@ -1,8 +1,26 @@
+/**
+ * 
+ * Copyright 2022 Modelware Solutions LLC and CEA-LIST.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
 package io.opencaesar.ecore2oml;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -19,15 +37,21 @@ import org.eclipse.emf.ecore.ENamedElement;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
+import org.eclipse.emf.ecore.EcorePackage;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreSwitch;
 
+import io.opencaesar.ecore2oml.AssociationBuilder.Association;
 import io.opencaesar.oml.Aspect;
 import io.opencaesar.oml.Concept;
+import io.opencaesar.oml.ConceptInstance;
+import io.opencaesar.oml.Description;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.EnumeratedScalar;
 import io.opencaesar.oml.ForwardRelation;
 import io.opencaesar.oml.Literal;
 import io.opencaesar.oml.Member;
+import io.opencaesar.oml.Ontology;
 import io.opencaesar.oml.Property;
 import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.ReverseRelation;
@@ -35,6 +59,9 @@ import io.opencaesar.oml.Scalar;
 import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlBuilder;
+import io.opencaesar.oml.util.OmlCatalog;
+import io.opencaesar.oml.util.OmlConstants;
+import io.opencaesar.oml.util.OmlRead;
 
 public class Ecore2Oml extends EcoreSwitch<EObject> {
 	
@@ -51,9 +78,14 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	// XSD types
 	private static final Map<String, String> xsdTypes = new HashMap<String, String>();
 	static {
+		xsdTypes.put("eenumerator", "string");		
+		xsdTypes.put("ejavaclass", "string");		
+		xsdTypes.put("ejavaobject", "string");		
 		xsdTypes.put("estring", "string");		
 		xsdTypes.put("eint", "int");		
 		xsdTypes.put("eintegerobject", "int");		
+		xsdTypes.put("elong", "long");		
+		xsdTypes.put("eshort", "short");		
 		xsdTypes.put("eboolean", "boolean");		
 		xsdTypes.put("ebooleanobject", "boolean");		
 		xsdTypes.put("edouble", "double");		
@@ -61,6 +93,18 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		xsdTypes.put("efloat", "float");		
 		xsdTypes.put("efloatobject", "float");		
 		xsdTypes.put("ebigdecimal", "decimal");		
+		xsdTypes.put("ebyte", "byte");		
+		xsdTypes.put("echar", "string");		
+		xsdTypes.put("edate", "dateTime");		
+		xsdTypes.put("eelist", "string");		
+		xsdTypes.put("ediagnosticchain", "string");		
+		xsdTypes.put("efeaturemap", "string");		
+		xsdTypes.put("efeaturemapentry", "string");		
+		xsdTypes.put("emap", "string");		
+		xsdTypes.put("etreeiterator", "string");		
+		xsdTypes.put("einvocationtargetexception", "string");		
+		xsdTypes.put("eresource", "string");		
+		xsdTypes.put("eresourceset", "string");		
 		xsdTypes.put("anyuri", "anyURI");
 		xsdTypes.put("base64binary", "base64Binary");
 		xsdTypes.put("boolean", "boolean");
@@ -101,6 +145,8 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		xsdTypes.put("unsignedlong", "unsignedLong");
 		xsdTypes.put("unsignedshort", "unsignedShort");
 		xsdTypes.put("unsignedshortobject", "unsignedShort");
+		xsdTypes.put("id", "string");
+		xsdTypes.put("qname", "string");
 	}
 
 	// OWL types
@@ -123,58 +169,137 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		rdfTypes.put("xmlliteral", "XMLLiteral");		
 	}
 
-	private Vocabulary vocabulary;
-	private final EPackage ePackage;
-	private final URI outputResourceURI;
+	private final File inputFolder;
+	private final Resource inputResource;
+	private final OmlCatalog catalog;
 	private final OmlBuilder oml;
-	
-	private Map<String,EPackage> dependency = new HashMap<>();
 
-	public Ecore2Oml(EPackage ePackage, URI outputResourceURI, OmlBuilder oml) {
-		this.ePackage = ePackage;
-		this.outputResourceURI = outputResourceURI;
+	private AssociationBuilder associations;
+	private Set<URI> newURIs = new HashSet<>();
+	private Set<URI> importedURIs = new HashSet<>();
+
+	private Map<Object, Ontology> rootToOntology = new HashMap<>();
+	
+	public Ecore2Oml(File inputFolder, Resource inputResource, OmlCatalog catalog, OmlBuilder oml) {
+		this.inputFolder = inputFolder;
+		this.inputResource = inputResource;
+		this.catalog = catalog;
 		this.oml = oml;
-	}
-	
-	public void run() {
-		doSwitch(ePackage);
+		this.associations = new AssociationBuilder(inputResource);
 	}
 
-	private void addExternalDepenedncy(String iri, EPackage ePackage) {
-		dependency.put(iri,ePackage);
+	public Set<URI> run() {
+		// now process the model content
+		for (EObject root : inputResource.getContents()) {
+			doSwitch(root);
+		}
+		return newURIs;
 	}
 	
-	public Map<String,EPackage> getDependencies() {
-		return dependency;
+	public Set<URI> getImportedURIs() {
+		return importedURIs;
 	}
 
+	private URI addImportedURI(EObject root) {
+		URI uri = root.eResource().getURI();
+		if (uri != null) {
+			importedURIs.add(uri);
+		}
+		return uri;
+	}
+
+	private URI addNewURI(String iri) {
+		URI uri = getMappedResourceURI(iri);
+		if (uri != null) {
+			newURIs.add(uri);
+		}
+		return uri;
+	}
+	
+	private URI getMappedResourceURI(String iri) {
+		try {
+			String relativePath = catalog.resolveURI(iri)+"."+OmlConstants.OML_EXTENSION;
+			return URI.createURI(relativePath);
+		} catch (IOException e) {
+			return null;
+		}
+	}
+	
+	@Override
+	public EObject defaultCase(EObject object) {
+		if (object.eContainer() == null) {
+			createDescription(object);
+		}
+		if (object instanceof EAnnotation) {
+			return null;
+		}
+		return caseEObject(object);
+	}
+
+	protected Description createDescription(EObject object) {
+		if (rootToOntology.get(inputResource) == null) {
+			File inputFile = new File(inputResource.getURI().trimFileExtension().toFileString());
+			String relativePath = inputFolder.toURI().relativize(inputFile.toURI()).getPath();
+			final String iri = "http://" + relativePath;
+			final SeparatorKind separator = SeparatorKind.HASH;
+			final String pefix = inputFile.getName();
+			
+			Description description = oml.createDescription(addNewURI(iri), iri, separator, pefix);
+			rootToOntology.put(object.eResource(), description);
+			return description;
+		}
+		return (Description) rootToOntology.get(inputResource);
+	}
+
+	protected EObject caseEObject(EObject object) {
+		if (object.eClass().getEPackage() == EcorePackage.eINSTANCE) {
+			return null;
+		}
+		final Description description = (Description) rootToOntology.get(object.eResource()); 
+		ConceptInstance instance = oml.addConceptInstance(description, object.eResource().getURIFragment(object));
+		String typeIri = getIri(description, object.eClass());
+		oml.addConceptTypeAssertion(description, instance.getIri(), typeIri);
+		object.eContents().forEach(i -> defaultCase(i));
+		return instance;
+	}
+	
 	@Override
 	public EObject caseEPackage(EPackage object) {
 		final String iri = getIri(object);
 		final SeparatorKind separator = getSeparator(object);
 		final String pefix = getPrefix(object);
 		
-		vocabulary = oml.createVocabulary(outputResourceURI, iri, separator, pefix);
-		object.getEClassifiers().stream().forEach(c -> doSwitch(c));
+		Vocabulary vocabulary = oml.createVocabulary(addNewURI(iri), iri, separator, pefix);
+		rootToOntology.put(object, vocabulary);
+
+		// build the associations first
+		if (object.getESuperPackage() == null) {
+			associations.build();
+		}
 		
+		object.getEClassifiers().stream().forEach(c -> doSwitch(c));
+		object.getESubpackages().stream().forEach(p -> doSwitch(p));
+
 		return vocabulary;
 	}
 
 	@Override
 	public EObject caseEEnum(EEnum object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
 		final String name = getEnumeratedScalarName(object);
 		final Literal[] literals = object.getELiterals().stream().map(i -> doSwitch(i)).toArray(Literal[]::new);
 
 		final EnumeratedScalar scalar = oml.addEnumeratedScalar(vocabulary, name, literals);
 		addAnnotations(scalar, object);
 
-		oml.addSpecializationAxiom(vocabulary, scalar.getIri(), getIriAndImportIfNeeded(XSD_IRI, SeparatorKind.HASH, "string", "xsd"));
+		oml.addSpecializationAxiom(vocabulary, scalar.getIri(), getTermIriAndImportIfNeeded(vocabulary, XSD_IRI, SeparatorKind.HASH, "string", "xsd"));
 
 		return scalar;
 	}
 	
 	@Override
 	public EObject caseEEnumLiteral(EEnumLiteral object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEEnum().getEPackage()); 
 		final String name = getEnumerationLiteralName(object);
 
 		return oml.createQuotedLiteral(vocabulary, name, null, null);
@@ -182,6 +307,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 	@Override
 	public EObject caseEDataType(EDataType object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
 		final String name = getFacetedScalarName(object);
 
 		// Ignore the case of EnumObject datatype (generated by XML adapter)
@@ -203,13 +329,13 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		}
 		
 		// Get the URI of the specified base type if any
-		String baseIri = getStandardIri(baseName);
+		String baseIri = getStandardIri(vocabulary, baseName);
 		if (baseIri == null) {
 			EClassifier base = object.getEPackage().getEClassifier(baseName);
 			if (base != null && base != object) {
 				baseIri = vocabulary.getIri()+SeparatorKind.HASH+baseName;
 			} else {
-				baseIri = getIriAndImportIfNeeded(RDFS_IRI, SeparatorKind.HASH, "Literal", "rdfs");
+				baseIri = getTermIriAndImportIfNeeded(vocabulary, RDFS_IRI, SeparatorKind.HASH, "Literal", "rdfs");
 			}				
 		}
 
@@ -222,6 +348,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 	@Override
 	public EObject caseEClass(EClass object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
 		final boolean isXMLDocumentRootClass = object.getEReferences().stream().anyMatch(i -> i.getName().equals("xMLNSPrefixMap"));
 		
 		// ignore the XML Document Root class
@@ -237,7 +364,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		}
 		for (EClass eSuperType : object.getESuperTypes()) {
 			if (!eSuperType.eIsProxy()) {
-				String superIri = getIri(eSuperType);
+				String superIri = getIri(vocabulary, eSuperType);
 				if (superIri != null) {
 					oml.addSpecializationAxiom(vocabulary, entity.getIri(), superIri);
 				}
@@ -251,15 +378,18 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	}
 	
 	private Aspect caseEClassToAspect(EClass object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
 		return oml.addAspect(vocabulary, getAspectName(object));
 	}
 
 	private Concept caseEClassToConcept(EClass object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
 		return oml.addConcept(vocabulary, getConceptName(object));
 	}
 
 	@Override
 	public EObject caseEAttribute(EAttribute object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEContainingClass().getEPackage()); 
 		final EClass domain = object.getEContainingClass();
 		final EDataType range = object.getEAttributeType();
 		final boolean isFeatureMap = object.getEType().getName().equals("EFeatureMapEntry");
@@ -269,9 +399,9 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		}
 
 		// find the domain
-		String domainIri = getIri(domain);
+		String domainIri = getIri(vocabulary, domain);
 		// find the range
-		String rangeIri = getIri(range);
+		String rangeIri = getIri(vocabulary, range);
 
 		// create Property
 		final String name = getScalarPropertyName(object);
@@ -285,7 +415,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 			final SeparatorKind attrPackageSep = getSeparator(attr.getEContainingClass().getEPackage());
 			final String attrPackagePrefix = getPrefix(attr.getEContainingClass().getEPackage());
 			final String attrName = attr.getEContainingClass().getName() + "." + attr.getName();
-			String baseIri = getIriAndImportIfNeeded(attrPackageIri, attrPackageSep, attrName, attrPackagePrefix);
+			String baseIri = getTermIriAndImportIfNeeded(vocabulary, attrPackageIri, attrPackageSep, attrName, attrPackagePrefix);
 			oml.addSpecializationAxiom(vocabulary, property.getIri(), baseIri);
 		}
 
@@ -296,27 +426,27 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 	@Override
 	public EObject caseEReference(EReference object) {
+		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEContainingClass().getEPackage()); 
+
 		if (eReferencesCache.contains(object)) {
 			return null;
 		}
 
-		object = getForward(object, object.getEOpposite());
-		if (object == null) {
-			return null;
-		}
+		final Association association = associations.get(object);
+		final EReference reference = association.forward;
+		final EReference opposite = association.reverse;
 
-		final String name = getRelationEntityName(object);
-		final EClass source = object.getEContainingClass();
-		final EClass target = object.getEReferenceType();
-		final EReference opposite = object.getEOpposite();
-		final boolean isFunctional = object.getUpperBound() == 1;
-		final boolean isInverseFunctional = (opposite != null) && opposite.getLowerBound() == 1;
+		String name = association.getName();
+		final EClass source = (reference != null) ? reference.getEContainingClass() : opposite.getEReferenceType();
+		final EClass target = (reference != null) ? reference.getEReferenceType() : opposite.getEContainingClass();
+		final boolean isFunctional = (reference != null) ? reference.getUpperBound()==1 : false;
+		final boolean isInverseFunctional = (opposite != null) ? opposite.getLowerBound()==1 : false;
 
 		// the relation entity's source
-		String sourceIri = getIri(source);
+		String sourceIri = getIri(vocabulary, source);
 
 		// the relation entity's target
-		String targetIri = getIri(target);
+		String targetIri = getIri(vocabulary, target);
 
 		// the relation entity
 		final RelationEntity entity = oml.addRelationEntity(
@@ -324,27 +454,36 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 			false, false, false, false, false);
 		
 		// the forward relation
-		final String forwardName = getRelationName(object);
-		ForwardRelation forward = oml.addForwardRelation(entity, forwardName);
-		addAnnotations(forward, object);
-		eReferencesCache.add(object);
+		if (reference != null) {
+			final String forwardName = association.getForwardName();
+			ForwardRelation forward = oml.addForwardRelation(entity, forwardName);
+			addAnnotations(forward, reference);
+			eReferencesCache.add(reference);
+		}
 
 		// the reverse relation
 		if (opposite != null) {
-			String reverseName = getRelationName(opposite);
+			String reverseName = association.getReverseName();
 			ReverseRelation reverse = oml.addReverseRelation(entity, reverseName);
 			addAnnotations(reverse, opposite);
 			eReferencesCache.add(opposite);
 		}
 		
 		// Relation specialization
-		for (EReference ref : getSuperEReferences(object)) {
-			final String refPackageIri = getIri(ref.getEContainingClass().getEPackage());
-			final SeparatorKind refPackageSep = getSeparator(ref.getEContainingClass().getEPackage());
-			final String refPackagePrefix = getPrefix(ref.getEContainingClass().getEPackage());
-			final String refName = getRelationEntityName(ref);
-			String baseIri = getIriAndImportIfNeeded(refPackageIri, refPackageSep, refName, refPackagePrefix);
-			oml.addSpecializationAxiom(vocabulary, entity.getIri(), baseIri);
+		for (Association superAss : association.supers) {
+			final EReference superReference = superAss.forward;
+			final EReference superOpposite = superAss.reverse;
+			
+			final String refName = superAss.getName();
+			final EPackage ePackage = (superReference != null)
+					? superReference.getEContainingClass().getEPackage()
+					: superOpposite.getEContainingClass().getEPackage();
+			final String refPackageIri = getIri(ePackage);
+			final SeparatorKind refPackageSep = getSeparator(ePackage);
+			final String refPackagePrefix = getPrefix(ePackage);
+			
+			String superEntityIri = getTermIriAndImportIfNeeded(vocabulary, refPackageIri, refPackageSep, refName, refPackagePrefix);
+			oml.addSpecializationAxiom(vocabulary, entity.getIri(), superEntityIri);
 		}
 		
 		return entity;
@@ -360,15 +499,17 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 	}
 
 	private void addAnnotations(Member member, ENamedElement object) {
+		final Ontology ontology = member.getOntology(); 
+
 		// add rdfs:label
-		oml.addAnnotation(vocabulary, member.getIri(), getIriAndImportIfNeeded(RDFS_IRI, SeparatorKind.HASH, "label", "rdfs"), oml.createQuotedLiteral(vocabulary, object.getName(), null, null));
+		oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_IRI, SeparatorKind.HASH, "label", "rdfs"), oml.createQuotedLiteral(ontology, object.getName(), null, null));
 
 		// add rfds:comment
 		EAnnotation genModel = object.getEAnnotation(GEN_MODEL_IRI);
 		if (genModel != null) {
 			String doc = genModel.getDetails().get("documentation");
 			if (doc != null) {
-				oml.addAnnotation(vocabulary, member.getIri(), getIriAndImportIfNeeded(RDFS_IRI, SeparatorKind.HASH, "comment", "rdfs"), oml.createQuotedLiteral(vocabulary, doc, null, null));
+				oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_IRI, SeparatorKind.HASH, "comment", "rdfs"), oml.createQuotedLiteral(ontology, doc, null, null));
 			}
 		}
 	}
@@ -394,7 +535,7 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 		return nsURI;
 	}	
 
-	private String getIri(EClassifier object) {
+	private String getIri(Ontology ontology, EClassifier object) {
 		final String name = object.getName();
 		final String iri = getIri(object.getEPackage());
 		final SeparatorKind sep = getSeparator(object.getEPackage());
@@ -402,121 +543,45 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 		if (object instanceof EDataType) {
 			if (Ecore_IRI.equals(iri) || XML_TYPE_IRI.equals(iri)) {
-				return getStandardIri(name);
+				return getStandardIri(ontology, name);
 			}
 		}
 
-		if (!vocabulary.getIri().equals(iri)) {
-			addExternalDepenedncy(iri, object.getEPackage());
+		if (!ontology.getIri().equals(iri)) {
+			addImportedURI(object.getEPackage());
 		}
 		
-		return getIriAndImportIfNeeded(iri, sep, name, prefix);
+		return getTermIriAndImportIfNeeded(ontology, iri, sep, name, prefix);
 	}
 
-	private String getIriAndImportIfNeeded(String iri, SeparatorKind sep, String name, String prefix) {
-		if (!iri.equals(vocabulary.getIri())) {
-			if (!vocabulary.getOwnedImports().stream().anyMatch(i -> i.getIri().equals(iri))) {
-				oml.addVocabularyExtension(vocabulary, iri, sep, prefix);
+	private String getTermIriAndImportIfNeeded(Ontology ontology, String iri, SeparatorKind sep, String name, String prefix) {
+		if (!iri.equals(ontology.getIri())) {
+			if (!OmlRead.getImports(ontology).stream().anyMatch(i -> i.getIri().equals(iri))) {
+				if (ontology instanceof Vocabulary) {
+					oml.addVocabularyExtension((Vocabulary) ontology, iri, sep, prefix);
+				} else if (ontology instanceof Description) {
+					oml.addDescriptionUsage((Description) ontology, iri, sep, prefix);
+				}
 			}
 		}
 		return iri+sep+name;
 	}
 	
-	private String getStandardIri(String name) {
+	private String getStandardIri(Ontology ontology, String name) {
 		name = name.toLowerCase();
 		if (xsdTypes.containsKey(name)) {
-			return getIriAndImportIfNeeded(XSD_IRI, SeparatorKind.HASH, xsdTypes.get(name), "xsd");
+			return getTermIriAndImportIfNeeded(ontology, XSD_IRI, SeparatorKind.HASH, xsdTypes.get(name), "xsd");
 		} else if (owlTypes.containsKey(name)) {
-			return getIriAndImportIfNeeded(OWL_IRI, SeparatorKind.HASH, owlTypes.get(name), "owl");
+			return getTermIriAndImportIfNeeded(ontology, OWL_IRI, SeparatorKind.HASH, owlTypes.get(name), "owl");
 		} else if (rdfsTypes.containsKey(name)) {
-			return getIriAndImportIfNeeded(RDFS_IRI, SeparatorKind.HASH, rdfsTypes.get(name), "rdfs");
+			return getTermIriAndImportIfNeeded(ontology, RDFS_IRI, SeparatorKind.HASH, rdfsTypes.get(name), "rdfs");
 		} else if (rdfTypes.containsKey(name)) {
-			return getIriAndImportIfNeeded(RDF_IRI, SeparatorKind.HASH, rdfTypes.get(name), "rdf");
+			return getTermIriAndImportIfNeeded(ontology, RDF_IRI, SeparatorKind.HASH, rdfTypes.get(name), "rdf");
 		}
+		System.out.println(name);
 		return null;
 	}
 
-	private Map<EReference, EReference> eReferencesMap = new HashMap<EReference, EReference>();
-
-	private EReference getForward(EReference ref1, EReference ref2) {
-		if (eReferencesMap.containsKey(ref1)) {
-			return eReferencesMap.get(ref1);
-		}
-		
-		Iterator<EReference> i = getSuperEReferences(ref1).iterator();
-		if (i.hasNext()) {
-			EReference superRef1 = i.next();
-			EReference superOppRef1 = superRef1.getEOpposite();
-			EReference superForward = getForward(superRef1, superOppRef1);
-			if (superForward == superRef1) {
-				while (i.hasNext()) {
-					superRef1 = i.next();
-					superOppRef1 = superRef1.getEOpposite();
-					eReferencesMap.put(superRef1, superRef1);
-					eReferencesMap.put(superOppRef1, superRef1);
-				}
-				return ref1;
-			} else {
-				while (i.hasNext()) {
-					superRef1 = i.next();
-					superOppRef1 = superRef1.getEOpposite();
-					eReferencesMap.put(superRef1, superOppRef1);
-					eReferencesMap.put(superOppRef1, superOppRef1);
-				}
-				return ref2;
-			}
-		}
-		
-		EReference one = null;
-		if (ref2 == null) {
-			one = ref1;
-		} else {
-			// container wins
-			if (ref1.isContainment() && !ref2.isContainment()) {
-				one = ref1;
-			} else if (ref2.isContainment() && !ref1.isContainment()) {
-				one = ref2;
-			}
-			// higher multiplicity wins
-			if (one == null) {
-				int ref1Upper = (ref1.getUpperBound() == -1) ? Integer.MAX_VALUE : ref1.getUpperBound();
-				int ref2Upper = (ref2.getUpperBound() == -1) ? Integer.MAX_VALUE : ref2.getUpperBound();
-				if (ref1Upper > ref2Upper) {
-					one = ref1;
-				} else if (ref2Upper > ref1Upper) {
-					one = ref2;
-				}
-			}
-			// higher alphabetical wins
-			if (one == null) {
-				one = ref1.getName().compareTo(ref2.getName()) > 0 ? ref1 : ref2;
-			}
-		}
-		
-		eReferencesMap.put(one, one);
-		if (one.getEOpposite() != null) {
-			eReferencesMap.put(one.getEOpposite(), one);
-		}
-		return one;
-	}
-	
-	private Set<EReference> getSuperEReferences(EReference object) {
-		Set<EReference> superRefs = new LinkedHashSet<EReference>() ;
-		EAnnotation ann = object.getEAnnotation("subsets");
-		if (ann != null) {
-			for (EObject ref : ann.getReferences()) {
-				superRefs.add((EReference)ref);
-			}
-		}
-		ann = object.getEAnnotation("redefines");
-		if (ann != null) {
-			for (EObject ref : ann.getReferences()) {
-				superRefs.add((EReference)ref);
-			}
-		}
-		return superRefs;
-	}
-	
 	private Set<EAttribute> getSuperEAttributes(EAttribute object) {
 		Set<EAttribute> superRefs = new LinkedHashSet<EAttribute>() ;
 		EAnnotation ann = object.getEAnnotation("subsets");
@@ -556,14 +621,6 @@ public class Ecore2Oml extends EcoreSwitch<EObject> {
 
 	private String getScalarPropertyName(EAttribute object) {
 		return object.getEContainingClass().getName() + "_" + object.getName();
-	}
-
-	private String getRelationEntityName(EReference object) {
-		return object.getEContainingClass().getName() + "_" + object.getName() + "_A";
-	}
-
-	private String getRelationName(EReference object) {
-		return object.getEContainingClass().getName() + "_"  + object.getName();
 	}
 
 }

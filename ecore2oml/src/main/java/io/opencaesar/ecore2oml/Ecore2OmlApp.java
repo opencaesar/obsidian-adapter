@@ -1,6 +1,6 @@
 /**
  * 
- * Copyright 2021 Modelware Solutions and CAE-LIST.
+ * Copyright 2022 Modelware Solutions LLC and CEA-LIST.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * 
- */
-package io.opencaesar.ecore2oml;
+ */package io.opencaesar.ecore2oml;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.log4j.Appender;
@@ -42,8 +38,8 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.util.ECrossReferenceAdapter;
-import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xcore.XcoreStandaloneSetup;
+import org.eclipse.emf.ecore.xmi.impl.XMLResourceFactoryImpl;
 import org.eclipse.xtext.resource.XtextResourceSet;
 
 import com.beust.jcommander.IParameterValidator;
@@ -61,38 +57,62 @@ import io.opencaesar.oml.util.OmlConstants;
 
 public class Ecore2OmlApp {
 
+	private static final String ECORE = "ecore";
+	private static final String XCORE = "xcore";
+	
 	@Parameter(
 		names= {"--input-folder-path","-i"}, 
-		description="Location of input folder of Ecore files (Required)",
+		description="Location of input folder (Required)",
 		validateWith=InputFolderPath.class, 
 		required=true, 
 		order=1)
-	private String inputFolderPath = null;
+	protected String inputFolderPath = null;
 
 	@Parameter(
 		names= {"--output-catalog-path", "-o"}, 
 		description="Location of the output OML catalog XML file (Required)", 
-		validateWith=CatalogPath.class, 
+		validateWith=OutputCatalogPath.class, 
 		required=true, 
-		order=2
+		order=2)
+	protected String outputCatalogPath;
+
+	@Parameter(
+		names= {"--referenced-ecore-path", "-r"}, 
+		description="Location of a referenced ecore/xcore file (Optional)", 
+		validateWith= InputEcorePath.class,
+		required=false, 
+		order=3
 	)
-	private String outputCatalogPath;
+	protected List<String> referencedEcorePaths = new ArrayList<>();
 	
+	@Parameter(
+		names= {"--input-file-extension","-ie"}, 
+		description="Extension of input file (Optional, ecore/xcore by default)",
+		required=false, 
+		order=4)
+	protected List<String> inputFileExtensions = new ArrayList<>();
+
+	@Parameter(
+		names= {"--output-file-extension","-oe"}, 
+		description="Extension of output file (Optional, oml by default)",
+		required=false, 
+		order=5)
+	protected String outputFileExtension = OmlConstants.OML_EXTENSION;
+
 	@Parameter(
 		names= {"--debug", "-d"}, 
 		description="Shows debug logging statements", 
-		order=4
-	)
-	private boolean debug;
+		order=6)
+	protected boolean debug;
 
 	@Parameter(
 		names= {"--help","-h"}, 
 		description="Displays summary of options", 
 		help=true, 
-		order=5) 
-	private boolean help;
+		order=7) 
+	protected boolean help;
 
-	private Logger LOGGER = LogManager.getLogger(Ecore2OmlApp.class);
+	protected Logger LOGGER = LogManager.getLogger(Ecore2OmlApp.class);
 
 	/*
 	 * Main method
@@ -118,7 +138,7 @@ public class Ecore2OmlApp {
 	/*
 	 * Run method
 	 */
-	private void run() throws IOException {
+	protected void run() throws IOException {
 		LOGGER.info("=================================================================");
 		LOGGER.info("                        S T A R T");
 		LOGGER.info("                      Ecore to Oml "+getAppVersion());
@@ -126,20 +146,23 @@ public class Ecore2OmlApp {
 		LOGGER.info("Input Folder Path= " + inputFolderPath);
 		LOGGER.info("Output Catalog Path= " + outputCatalogPath);
 		
-		final File inputFolder = new File(inputFolderPath);
-		final Collection<File> inputFiles = collectEcoreFiles(inputFolder);
+		if (inputFileExtensions.isEmpty()) {
+			inputFileExtensions.add(ECORE);
+			inputFileExtensions.add(XCORE);
+		}
 		
-		final Injector injector = new XcoreStandaloneSetup().createInjectorAndDoEMFRegistration();
-		final XtextResourceSet inputResourceSet = injector.getInstance(XtextResourceSet.class);
-
+		final File inputFolder = new File(inputFolderPath);
+		final Collection<File> inputFiles = collectInputFiles(inputFolder, inputFileExtensions);
+		
+		final ResourceSet inputResourceSet = createInputResourceSet();
+		
 		// load the input models and resolve their references
+		List<URI> inputResourceURIs = new ArrayList<>();
 		for (File inputFile : inputFiles) {
 			final URI inputURI = URI.createFileURI(inputFile.getAbsolutePath());
+			inputResourceURIs.add(inputURI);
 			LOGGER.info("Reading: "+inputURI);
-			final Resource inputResource = inputResourceSet.getResource(inputURI, true);
-			if (inputResource != null) {
-				EcoreUtil.resolveAll(inputResource);
-			}
+			inputResourceSet.getResource(inputURI, true);
 		}
 
 		// load the Oml registries here after the input have been read
@@ -157,51 +180,20 @@ public class Ecore2OmlApp {
 		// start the Oml Builder
 		builder.start();
 
-		Map<String,EPackage> dependency = new HashMap<>();
-		Set<String> handled = new HashSet<>();
-		// create the new resources
-		final List<URI> outputResourceURIs = new ArrayList<URI>();
-		for (File inputFile : inputFiles) {
-			final URI inputURI = URI.createFileURI(inputFile.getAbsolutePath());
-			final Resource inputResource = inputResourceSet.getResource(inputURI, true);
-			if (inputResource != null) {
-				final TreeIterator<EObject> i = inputResource.getAllContents();
-				while (i.hasNext()) {
-					EObject content = i.next();
-					if (content instanceof EPackage) {
-						EPackage ePackage = (EPackage) content;
-						final String relativePath = catalog.resolveURI(ePackage.getNsURI())+"."+OmlConstants.OML_EXTENSION;
-						final URI outputResourceURI = URI.createURI(relativePath);
-						LOGGER.info("Creating: "+outputResourceURI);
-						Ecore2Oml e2o = new Ecore2Oml(ePackage, outputResourceURI, builder);
-						e2o.run();
-						dependency.putAll(e2o.getDependencies());
-						outputResourceURIs.add (outputResourceURI);
-						String iri = ePackage.getNsURI();
-						handled.add(iri);
-					}
-				}
+		// convert the input resources
+		List<URI> outputResourceURIs = new ArrayList<>(); 
+		Set<URI> unconvertedResourceURIs= new HashSet<>(inputResourceURIs); 
+		while (!unconvertedResourceURIs.isEmpty()) {
+			List<URI> uris = new ArrayList<URI>(unconvertedResourceURIs);
+			for (URI uri : uris) {
+				Resource inputResource = inputResourceSet.getResource(uri, true);
+				Ecore2Oml e2o = createEcore2Oml(inputFolder, inputResource, catalog, builder);
+				Set<URI> newURIs = e2o.run();
+				assert (!outputResourceURIs.removeAll(newURIs));
+				outputResourceURIs.addAll(newURIs);
+				unconvertedResourceURIs.addAll(e2o.getImportedURIs());
 			}
-		}
-		
-		handled.forEach(d -> {
-			dependency.remove(d);
-		});
-		
-		while (!dependency.isEmpty()) {
-			for (Entry<String, EPackage> iri: dependency.entrySet()) {
-				String ecoreRelativePath =  catalog.resolveURI(iri.getKey()) +"."+OmlConstants.OML_EXTENSION;
-				URI ecoreResourceURI = URI.createURI(ecoreRelativePath);
-				Ecore2Oml e2o = new Ecore2Oml(iri.getValue(), ecoreResourceURI, builder);				
-				e2o.run();
-				dependency.putAll(e2o.getDependencies());
-				outputResourceURIs.add (ecoreResourceURI);
-				handled.add(iri.getKey());
-			}
-			
-			handled.forEach(d -> {
-				dependency.remove(d);
-			});
+			unconvertedResourceURIs.removeAll(uris);
 		}
 		
 		// finish the Oml builder
@@ -221,24 +213,55 @@ public class Ecore2OmlApp {
 		LOGGER.info("=================================================================");
 	}
 
+	protected Ecore2Oml createEcore2Oml(File inputFolder, Resource inputResource, OmlCatalog catalog, OmlBuilder builder) {
+		return new Ecore2Oml(inputFolder, inputResource, catalog, builder);
+	}
+	
+	protected ResourceSet createInputResourceSet() {
+		final Injector injector = new XcoreStandaloneSetup().createInjectorAndDoEMFRegistration();
+		final XtextResourceSet resourceSet = injector.getInstance(XtextResourceSet.class);
+		
+		XMLResourceFactoryImpl resourceFactory = new XMLResourceFactoryImpl();
+		Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("*", resourceFactory);
+		
+		// load any referenced Ecore files
+	    EPackage.Registry packageRegistry = injector.getInstance(EPackage.Registry.class);
+		for (String path : referencedEcorePaths) {
+			final URI inputURI = URI.createFileURI(path);
+			Resource inputResource = resourceSet.getResource(inputURI, true);
+			if (inputResource != null) {
+				final TreeIterator<EObject> i = inputResource.getAllContents();
+				while (i.hasNext()) {
+					EObject content = i.next();
+					if (content instanceof EPackage) {
+						EPackage ePackage = (EPackage)content;
+					    packageRegistry.put(ePackage.getNsURI(), ePackage);
+					}
+				}
+			}
+		}
+		
+		return resourceSet;
+	}
+	
 	// Utility methods
 	
-	private Collection<File> collectEcoreFiles(File directory) {
-		final List<File> omlFiles = new ArrayList<File>();
+	protected Collection<File> collectInputFiles(File directory, List<String> inputFileExtensions) {
+		final List<File> inputFiles = new ArrayList<File>();
 		for (File file : directory.listFiles()) {
 			if (file.isFile()) {
 				final String ext = getFileExtension(file);
-				if (ext.equals("ecore") || ext.equals("xcore")) {
-					omlFiles.add(file);
+				if (inputFileExtensions.contains(ext)) {
+					inputFiles.add(file);
 				}
 			} else if (file.isDirectory()) {
-				omlFiles.addAll(collectEcoreFiles(file));
+				inputFiles.addAll(collectInputFiles(file, inputFileExtensions));
 			}
 		}
-		return omlFiles;
+		return inputFiles;
 	}
 
-	private String getFileExtension(File file) {
+	private static String getFileExtension(File file) {
         final String fileName = file.getName();
         if(fileName.lastIndexOf(".") != -1)
         	return fileName.substring(fileName.lastIndexOf(".")+1);
@@ -265,7 +288,18 @@ public class Ecore2OmlApp {
 	  	}
 	}
 
-	static public class CatalogPath implements IParameterValidator {
+	static public class InputEcorePath implements IParameterValidator {
+		@Override
+		public void validate(String name, String value) throws ParameterException {
+			final File file = new File(value);
+			final String ext = getFileExtension(file);
+			if (!file.exists() || !(ext.equals(ECORE) || ext.equals(XCORE))) {
+				throw new ParameterException("Parameter " + name + " should be a valid Ecore file path");
+			}
+	  	}
+	}
+
+	static public class OutputCatalogPath implements IParameterValidator {
 		@Override
 		public void validate(String name, String value) throws ParameterException {
 			final File file = new File(value);
@@ -273,7 +307,6 @@ public class Ecore2OmlApp {
 				throw new ParameterException("Parameter " + name + " should be a valid OML catalog path");
 			}
 		}
-		
 	}
 
 }

@@ -1,17 +1,11 @@
 subprojects {
     group = 'io.opencaesar.adapters'
-    version = '1.3.2'
+    version = '1.4.0'
     
     ext.versions = [
         oml: '1.+',
         xmlresolver: '1.2',
-        xtext: '2.23.0',
-        xcore: '1.15.0',
-        xcoreLib: '1.5.0',
-        mwe2: '2.11.3',
-        codegen: '2.21.0',
-        codegenEcore: '2.23.0',
-        ecoreXtext: '1.5.0',
+        xcore: '1.22.0',
         jcommander: '1.72',
         log4j: '1.2.17',
         slf4j: '1.7.30',
@@ -29,6 +23,7 @@ subprojects {
     apply from: "${rootDir}/gradle/maven-deployment.gradle"
     
     sourceCompatibility = '11'
+    targetCompatibility = '11'
 
     java {
         withJavadocJar()
