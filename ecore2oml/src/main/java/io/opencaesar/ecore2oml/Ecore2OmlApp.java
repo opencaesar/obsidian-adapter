@@ -19,6 +19,7 @@
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,9 +53,11 @@ import io.opencaesar.oml.dsl.OmlStandaloneSetup;
 import io.opencaesar.oml.resource.OmlJsonResourceFactory;
 import io.opencaesar.oml.resource.OmlXMIResourceFactory;
 import io.opencaesar.oml.util.OmlBuilder;
-import io.opencaesar.oml.util.OmlCatalog;
 import io.opencaesar.oml.util.OmlConstants;
 
+/**
+ * An application to convert Ecore models to OML 
+ */
 public class Ecore2OmlApp {
 
 	private static final String ECORE = "ecore";
@@ -62,61 +65,63 @@ public class Ecore2OmlApp {
 	
 	@Parameter(
 		names= {"--input-folder-path","-i"}, 
-		description="Location of input folder (Required)",
+		description="Location of input Ecore folder (Required)",
 		validateWith=InputFolderPath.class, 
 		required=true, 
 		order=1)
-	protected String inputFolderPath = null;
+	private String inputFolderPath = null;
 
 	@Parameter(
-		names= {"--output-catalog-path", "-o"}, 
-		description="Location of the output OML catalog XML file (Required)", 
-		validateWith=OutputCatalogPath.class, 
+		names= {"--output-folder-path", "-o"}, 
+		description="Location of the output OML folder (Required)", 
+		validateWith=OutputFolderPath.class, 
 		required=true, 
 		order=2)
-	protected String outputCatalogPath;
+	private String outputFolderPath;
 
 	@Parameter(
 		names= {"--referenced-ecore-path", "-r"}, 
-		description="Location of a referenced ecore/xcore file (Optional)", 
+		description="Location of a referenced ecore file (Optional)", 
 		validateWith= InputEcorePath.class,
 		required=false, 
 		order=3
 	)
-	protected List<String> referencedEcorePaths = new ArrayList<>();
+	private List<String> referencedEcorePaths = new ArrayList<>();
 	
 	@Parameter(
 		names= {"--input-file-extension","-ie"}, 
 		description="Extension of input file (Optional, ecore/xcore by default)",
 		required=false, 
 		order=4)
-	protected List<String> inputFileExtensions = new ArrayList<>();
+	private List<String> inputFileExtensions = Arrays.asList(ECORE, XCORE);
 
 	@Parameter(
 		names= {"--output-file-extension","-oe"}, 
 		description="Extension of output file (Optional, oml by default)",
 		required=false, 
 		order=5)
-	protected String outputFileExtension = OmlConstants.OML_EXTENSION;
+	private String outputFileExtension = OmlConstants.OML_EXTENSION;
 
 	@Parameter(
 		names= {"--debug", "-d"}, 
 		description="Shows debug logging statements", 
 		order=6)
-	protected boolean debug;
+	private boolean debug;
 
 	@Parameter(
 		names= {"--help","-h"}, 
 		description="Displays summary of options", 
 		help=true, 
 		order=7) 
-	protected boolean help;
+	private boolean help;
 
-	protected Logger LOGGER = LogManager.getLogger(Ecore2OmlApp.class);
+	private Logger LOGGER = LogManager.getLogger(Ecore2OmlApp.class);
 
-	/*
-	 * Main method
-	 */
+    /**
+     * Application for converting Ecore files into OML.
+     * @param args Application arguments.
+     * @throws IOException Error
+     */
 	public static void main(String ... args) throws IOException {
 		final Ecore2OmlApp app = new Ecore2OmlApp();
 		final JCommander builder = JCommander.newBuilder().addObject(app).build();
@@ -135,21 +140,22 @@ public class Ecore2OmlApp {
 		app.run();
 	}
 
+    /**
+     * Creates a new Ecore2OmlApp object
+     */
+    public Ecore2OmlApp() {
+    }
+
 	/*
 	 * Run method
 	 */
-	protected void run() throws IOException {
+	private void run() throws IOException {
 		LOGGER.info("=================================================================");
 		LOGGER.info("                        S T A R T");
 		LOGGER.info("                      Ecore to Oml "+getAppVersion());
 		LOGGER.info("=================================================================");
 		LOGGER.info("Input Folder Path= " + inputFolderPath);
-		LOGGER.info("Output Catalog Path= " + outputCatalogPath);
-		
-		if (inputFileExtensions.isEmpty()) {
-			inputFileExtensions.add(ECORE);
-			inputFileExtensions.add(XCORE);
-		}
+		LOGGER.info("Output Folder Path= " + outputFolderPath);
 		
 		final File inputFolder = new File(inputFolderPath);
 		final Collection<File> inputFiles = collectInputFiles(inputFolder, inputFileExtensions);
@@ -169,10 +175,12 @@ public class Ecore2OmlApp {
 		OmlStandaloneSetup.doSetup();
 		OmlXMIResourceFactory.register();
 		OmlJsonResourceFactory.register();
+		
 		final ResourceSet outputResourceSet = new ResourceSetImpl();
+		outputResourceSet.getLoadOptions().put(OmlConstants.RESOLVE_IRI_USING_RESOURCE_SET, Boolean.TRUE);
 		outputResourceSet.eAdapters().add(new ECrossReferenceAdapter());
 
-		final OmlCatalog catalog = OmlCatalog.create(URI.createFileURI(outputCatalogPath));		
+		final File outputFolder = new File(outputFolderPath);		
 
 		// create the Oml builder
 		final OmlBuilder builder = new OmlBuilder(outputResourceSet);
@@ -187,7 +195,7 @@ public class Ecore2OmlApp {
 			List<URI> uris = new ArrayList<URI>(unconvertedResourceURIs);
 			for (URI uri : uris) {
 				Resource inputResource = inputResourceSet.getResource(uri, true);
-				Ecore2Oml e2o = createEcore2Oml(inputFolder, inputResource, catalog, builder);
+				Ecore2Oml e2o = new Ecore2Oml(inputFolder, inputResource, outputFolder, outputFileExtension, builder);
 				Set<URI> newURIs = e2o.run();
 				assert (!outputResourceURIs.removeAll(newURIs));
 				outputResourceURIs.addAll(newURIs);
@@ -213,11 +221,7 @@ public class Ecore2OmlApp {
 		LOGGER.info("=================================================================");
 	}
 
-	protected Ecore2Oml createEcore2Oml(File inputFolder, Resource inputResource, OmlCatalog catalog, OmlBuilder builder) {
-		return new Ecore2Oml(inputFolder, inputResource, catalog, builder);
-	}
-	
-	protected ResourceSet createInputResourceSet() {
+	private ResourceSet createInputResourceSet() {
 		final Injector injector = new XcoreStandaloneSetup().createInjectorAndDoEMFRegistration();
 		final XtextResourceSet resourceSet = injector.getInstance(XtextResourceSet.class);
 		
@@ -246,7 +250,7 @@ public class Ecore2OmlApp {
 	
 	// Utility methods
 	
-	protected Collection<File> collectInputFiles(File directory, List<String> inputFileExtensions) {
+	private Collection<File> collectInputFiles(File directory, List<String> inputFileExtensions) {
 		final List<File> inputFiles = new ArrayList<File>();
 		for (File file : directory.listFiles()) {
 			if (file.isFile()) {
@@ -278,7 +282,15 @@ public class Ecore2OmlApp {
     	return (version != null) ? version : "<SNAPSHOT>";
 	}
 
-	static public class InputFolderPath implements IParameterValidator {
+    /**
+     * A parameter validator for an Input Ecore folder path.
+     */
+	public static class InputFolderPath implements IParameterValidator {
+		/**
+		 * Creates a new InputFolderPath object
+		 */
+		public InputFolderPath() {
+		}
 		@Override
 		public void validate(String name, String value) throws ParameterException {
 			final File directory = new File(value);
@@ -288,7 +300,15 @@ public class Ecore2OmlApp {
 	  	}
 	}
 
-	static public class InputEcorePath implements IParameterValidator {
+    /**
+     * A parameter validator for input Ecore file path.
+     */
+	public static class InputEcorePath implements IParameterValidator {
+		/**
+		 * Creates a new InputEcorePath object
+		 */
+		public InputEcorePath() {
+		}
 		@Override
 		public void validate(String name, String value) throws ParameterException {
 			final File file = new File(value);
@@ -299,12 +319,23 @@ public class Ecore2OmlApp {
 	  	}
 	}
 
-	static public class OutputCatalogPath implements IParameterValidator {
+    /**
+     * A parameter validator for output OML Folder path.
+     */
+	public static class OutputFolderPath implements IParameterValidator {
+		/**
+		 * Creates a new OutputFolderPath object
+		 */
+		public OutputFolderPath() {
+		}
 		@Override
-		public void validate(String name, String value) throws ParameterException {
-			final File file = new File(value);
-			if (!file.getName().endsWith("catalog.xml")) {
-				throw new ParameterException("Parameter " + name + " should be a valid OML catalog path");
+		public void validate(final String name, final String value) throws ParameterException {
+			final File directory = new File(value).getAbsoluteFile();
+			if (!directory.isDirectory()) {
+				final boolean created = directory.mkdirs();
+				if ((!created)) {
+					throw new ParameterException((("Parameter " + name) + " should be a valid folder path"));
+				}
 			}
 		}
 	}

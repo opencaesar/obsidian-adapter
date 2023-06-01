@@ -33,7 +33,7 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.resource.Resource;
 
-public class AssociationBuilder {
+class AssociationBuilder {
 	
 	private Resource inputResource;
 
@@ -201,15 +201,9 @@ public class AssociationBuilder {
 			EReference ref2 = ref1.getEOpposite();
 			if ((ref1 != null && superAss.forward != null && getSuperEReferences(ref1).contains(superAss.forward)) ||
 				(ref2 != null && superAss.reverse != null && getSuperEReferences(ref2).contains(superAss.reverse))) {
-				if (ass.forward != null && ass.forward != ref1) {
-					System.out.println("oh oh");
-				}
 				ass.forward = ref1;
 				ass.reverse = ref1.getEOpposite();
 			} else {
-				if (ass.reverse != null && ass.reverse != ref1) {
-					System.out.println("oh oh");
-				}
 				ass.forward = ref1.getEOpposite();
 				ass.reverse = ref1;
 			}
@@ -225,15 +219,9 @@ public class AssociationBuilder {
 			EReference ref2 = ref1.getEOpposite();
 			if ((ref1 != null && subAss.forward != null && getSuperEReferences(subAss.forward).contains(ref1)) ||
 				(ref2 != null && subAss.reverse != null && getSuperEReferences(subAss.reverse).contains(ref2))) {
-				if (ass.forward != null && ass.forward != ref1) {
-					System.out.println("oh oh");
-				}
 				ass.forward = ref1;
 				ass.reverse = ref1.getEOpposite();
 			} else {
-				if (ass.reverse != null && ass.reverse != ref1) {
-					System.out.println("oh oh");
-				}
 				ass.forward = ref1.getEOpposite();
 				ass.reverse = ref1;
 			}
