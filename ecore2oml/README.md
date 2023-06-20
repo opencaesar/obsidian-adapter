@@ -7,18 +7,26 @@ A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to 
 ## Run as CLI
 
 MacOS/Linux
+
 ```
     ./gradlew ecore2oml:run --args="..."
 ```
 Windows
+
 ```
     gradlew.bat ecore2oml:run --args="..."
 ```
+
 Args
+
 ```
 --input-folder-path | -i path/to/input/ecore/folder [Required]
---output-catalog-path | -o path/to/output/oml/catalog.xml [Required]
---optionsFilePath | -op path/to/options/file.json [Required]
+--output-folder-path | -o path/to/output/oml/folder [Required]
+--referenced-ecore-path | -r path/to/referenced/ecore/file [Optional]
+--input-file-extension | -ie Extension of input file [Optional, ecore/xcore by default]
+--output-file-extension | -oe Extension of output file (Optional, oml by default, other options omlxmi and omljson)
+--debug | -d Shows debug statements
+--help | -h Shows help
 ```
 
 ## Run with Gradle
@@ -32,75 +40,10 @@ buildscript {
 	}
 }
 task ecore2oml(type:io.opencaesar.ecore2oml.Ecore2OmlTask) {
-	inputFolderPath = file('path/to/input/ecore/folder') [Required]
-	outputCatalogPath = file('path/to/output/oml/catalog.xml') [Required]
-	optionsFilePath = file('path/to/options/file.json') [Required]
+	inputFolderPath = file('path/to/input/ecore/folder') // Required
+	outputFolderPath = file('path/to/output/oml/folder') // Required
+	referencedEcorePaths = [ file('path/to/options/file.json') ] // Optional
+	inputFileExtensions = ['ecore', 'xcore'] // Optional
+	outputFileExtension = 'oml' // Optional (other options, omlxmi or omljson)
 }               
-```
-
-## Options File
-The options file allows customization of the Ecore to OML mapping. It is a JSON document with the following sections:
-
-```
-{
-	// This is used to change the IRI of the generated ontology
-	"uriMapping" : [
-		{ 
-		  // original nsURI of the EPackage
-		  "NSURI" : "http://www.eclipse.org/uml2/5.0.0/UML",
-		  // new IRI of the corresponding ontology 
-		  "value" : "http://www.eclipse.org/uml2/5.0.0/UML"
-		}
-	] ,
-	// This is used to specify that some ecore.EClasses (and their subtypes) should be mapped to oml.RelationEntity 
-	"relationships": [
-		{
-			// the IRI of the EClass
-			"root": "http://www.eclipse.org/uml2/5.0.0/UML#DirectedRelationship",
-			// the name of the EReference that is mapped to the source relation
-			"source": "source",
-			// the name of the EReference that is mapped to the target relation
-			"target": "target",
-			// the postfix that is added to the forward relation's name of all sub relation entities
-			"forwardPostFix": "forward",
-			// the postfix that is added to the reverse relation's name of all sub relation entities
-			"reversePostFix": "reverse",
-			// Overrides settings to particular sub relation entities
-			"overrides": [
-				{
-					// IRI of a sub relation entity to override
-					"iri": "http://www.eclipse.org/uml2/5.0.0/UML#PackageMerge",
-					// Overriden name of the relation entity's forward relation
-					"forwardName": "PackageMerge_CustomForward"
-				},
-				{
-					// IRI of a sub relation entity to override
-					"iri": "http://www.eclipse.org/uml2/5.0.0/UML#PackageImport",
-					// Overriden name of the relation entity's forward relation
-					"forwardName": "PackageImport_OtherCutomForward",
-					// Overriden name of the relation entity's reverse relation
-					"reverseName": "PackageMerge_CustomReverse"
-				}
-			]
-		}
-	],
-	// Semantic flags (symmetic, asymmetric,reflexive,irreflexive, transitive) that can be turned on on the mapped relation entities 
-	"semanticFlags_sample" : [
-		{
-		   // flags on a relation entity mapped from an EReference
-		  "iri" : "http://www.eclipse.org/uml2/5.0.0/UML#activity_ownedGroup" ,
-		  "onFlags" : ["asymmetric","reflexive","transitive"]
-		},
-		{
-		  // flags on a relation entity mapped from an opposite EReference
-		  "iri" : "http://www.eclipse.org/uml2/5.0.0/UML#activityEdge_activity" ,
-		  "onFlags" : ["symmetric","irreflexive","transitive"]
-		},
-		{
-		  // flags on a relation entity mapped from an EClass
-		  "iri" : "http://www.eclipse.org/uml2/5.0.0/UML#TemplateBinding" ,
-		  "onFlags" : ["asymmetric","reflexive","transitive"]
-		}
-	]
-}
 ```
