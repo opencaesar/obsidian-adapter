@@ -12,7 +12,7 @@ An [OML](https://opencaesar.github.io/oml) adapter for [Ecore](https://www.eclip
 ```
       
 ## Build
-Requirements: JDK 11
+Requirements: JDK 11+
 Mac/Linux
 ```
     ./gradlew build
