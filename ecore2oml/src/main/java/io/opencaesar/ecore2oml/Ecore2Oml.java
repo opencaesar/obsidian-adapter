@@ -43,6 +43,7 @@ import org.eclipse.emf.ecore.util.EcoreSwitch;
 
 import io.opencaesar.ecore2oml.AssociationBuilder.Association;
 import io.opencaesar.oml.Aspect;
+import io.opencaesar.oml.CardinalityRestrictionKind;
 import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.ConceptInstance;
 import io.opencaesar.oml.Description;
@@ -405,7 +406,7 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		Property property = oml.addScalarProperty(vocabulary, name, Collections.singletonList(domainIri), Collections.singletonList(rangeIri), isFunctional);
 		addAnnotations(property, object);
 
-		// Relation specialization
+		// Property specialization
 		for (EAttribute attr : getSuperEAttributes(object)) {
 			final String attrPackageIri = getIri(attr.getEContainingClass().getEPackage());
 			final String attrPackageNamespace = attrPackageIri + getSeparator(attr.getEContainingClass().getEPackage());
@@ -413,6 +414,20 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 			final String attrName = getScalarPropertyName(attr);
 			String baseIri = getTermIriAndImportIfNeeded(vocabulary, attrPackageNamespace, attrName, attrPackagePrefix);
 			oml.addSpecializationAxiom(vocabulary, property.getIri(), baseIri);
+		}
+		
+		// Property restrictions
+		if (object.getLowerBound() > 0 || object.getUpperBound() > 1) {
+			if (object.getLowerBound() == object.getUpperBound()) {
+				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, domainIri, property.getIri(), CardinalityRestrictionKind.EXACTLY, object.getLowerBound(), null);
+			} else {
+				if (object.getLowerBound() > 0) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, domainIri, property.getIri(), CardinalityRestrictionKind.MIN, object.getLowerBound(), null);
+				}
+				if (object.getUpperBound() > 1) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, domainIri, property.getIri(), CardinalityRestrictionKind.MAX, object.getUpperBound(), null);
+				}
+			}
 		}
 
 		return property;
@@ -454,10 +469,11 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		}
 		
 		// the reverse relation
+		ReverseRelation reverse = null;
 		if (opposite != null) {
 			if (relation != null) {
 				String reverseName = association.getReverseName();
-				ReverseRelation reverse = oml.addReverseRelation(relation, reverseName);
+				reverse = oml.addReverseRelation(relation, reverseName);
 				addAnnotations(reverse, opposite);
 			} else {
 				relation = oml.addUnreifiedRelation(
@@ -492,7 +508,35 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 			String superRelationIri = getTermIriAndImportIfNeeded(vocabulary, refPackageNamespace, refName, refPackagePrefix);
 			oml.addSpecializationAxiom(vocabulary, relation.getIri(), superRelationIri);
 		}
+
+		// Relation restrictions
+		if (reference != null && (reference.getLowerBound() > 0 || reference.getUpperBound() > 1)) {
+			if (reference.getLowerBound() == reference.getUpperBound()) {
+				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, sourceIri, relation.getIri(), CardinalityRestrictionKind.EXACTLY, reference.getLowerBound(), null);
+			} else {
+				if (reference.getLowerBound() > 0) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, sourceIri, relation.getIri(), CardinalityRestrictionKind.MIN, reference.getLowerBound(), null);
+				}
+				if (reference.getUpperBound() > 1) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, sourceIri, relation.getIri(), CardinalityRestrictionKind.MAX, reference.getUpperBound(), null);
+				}
+			}
+		}
 		
+		// Opposite restrictions
+		if (reverse != null && (opposite.getLowerBound() > 0 || opposite.getUpperBound() > 1))	 {
+			if (opposite.getLowerBound() == opposite.getUpperBound()) {
+				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.EXACTLY, opposite.getLowerBound(), null);
+			} else {
+				if (reference.getLowerBound() > 0) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.MIN, opposite.getLowerBound(), null);
+				}
+				if (reference.getUpperBound() > 1) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.MAX, opposite.getUpperBound(), null);
+				}
+			}
+		}
+
 		return relation;
 	}
 
