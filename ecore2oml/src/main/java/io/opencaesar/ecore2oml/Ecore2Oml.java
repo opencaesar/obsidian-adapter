@@ -19,8 +19,7 @@ package io.opencaesar.ecore2oml;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +52,7 @@ import io.opencaesar.oml.Literal;
 import io.opencaesar.oml.Member;
 import io.opencaesar.oml.Ontology;
 import io.opencaesar.oml.Property;
+import io.opencaesar.oml.Relation;
 import io.opencaesar.oml.ReverseRelation;
 import io.opencaesar.oml.Scalar;
 import io.opencaesar.oml.SeparatorKind;
@@ -75,7 +75,7 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 	private static final String OWL_NS = "http://www.w3.org/2002/07/owl#";
 
 	// XSD types
-	private static final Map<String, String> xsdTypes = new HashMap<String, String>();
+	private static final Map<String, String> xsdTypes = new LinkedHashMap<String, String>();
 	static {
 		xsdTypes.put("eenumerator", "string");		
 		xsdTypes.put("ejavaclass", "string");		
@@ -150,20 +150,20 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 	}
 
 	// OWL types
-	private static final Map<String, String> owlTypes = new HashMap<String, String>();
+	private static final Map<String, String> owlTypes = new LinkedHashMap<String, String>();
 	static {
 		owlTypes.put("real", "real");		
 		owlTypes.put("rational", "rational");		
 	}
 
 	// RDFS types
-	private static final Map<String, String> rdfsTypes = new HashMap<String, String>();
+	private static final Map<String, String> rdfsTypes = new LinkedHashMap<String, String>();
 	static {
 		rdfsTypes.put("literal", "Literal");		
 	}
 
 	// RDF types
-	private static final Map<String, String> rdfTypes = new HashMap<String, String>();
+	private static final Map<String, String> rdfTypes = new LinkedHashMap<String, String>();
 	static {
 		rdfTypes.put("plainliteral", "PlainLiteral");		
 		rdfTypes.put("xmlliteral", "XMLLiteral");		
@@ -176,10 +176,10 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 	private final OmlBuilder oml;
 
 	private AssociationBuilder associations;
-	private Set<URI> newURIs = new HashSet<>();
-	private Set<URI> importedURIs = new HashSet<>();
+	private Set<URI> newURIs = new LinkedHashSet<>();
+	private Set<URI> importedURIs = new LinkedHashSet<>();
 
-	private Map<Object, Ontology> rootToOntology = new HashMap<>();
+	private Map<Object, Ontology> rootToOntology = new LinkedHashMap<>();
 	
 	public Ecore2Oml(File inputFolder, Resource inputResource, File outputFolder, String outputFileExtension, OmlBuilder oml) {
 		this.inputFolder = inputFolder;
@@ -257,7 +257,7 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		final Description description = (Description) rootToOntology.get(object.eResource()); 
 		ConceptInstance instance = oml.addConceptInstance(description, object.eResource().getURIFragment(object));
 		String typeIri = getIri(description, object.eClass());
-		oml.addConceptTypeAssertion(description, instance.getIri(), typeIri);
+		oml.addTypeAssertion(description, instance.getIri(), typeIri);
 		object.eContents().forEach(i -> defaultCase(i));
 		return instance;
 	}
@@ -433,7 +433,7 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		return property;
 	}
 
-	private Set<EReference> eReferencesCache = new HashSet<EReference>();
+	private Set<EReference> eReferencesCache = new LinkedHashSet<EReference>();
 
 	@Override
 	public EObject caseEReference(EReference object) {
@@ -489,13 +489,17 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 			final EReference superReference = superAss.forward;
 			final EReference superOpposite = superAss.reverse;
 			
-			String refName = null;
+			Relation subRelation = null;
+			
+			String superRefName = null;
 			EPackage ePackage = null;
 			if (reference != null && superReference != null) {
-				refName = superAss.getForwardName();
+				subRelation = relation;
+				superRefName = superAss.getForwardName();
 				ePackage = superReference.getEContainingClass().getEPackage();
 			} else if (opposite != null && superOpposite != null) {
-				refName = superAss.getReverseName();
+				subRelation = (reverse != null) ? reverse : relation;
+				superRefName = superAss.getReverseName();
 				ePackage = superOpposite.getEContainingClass().getEPackage();
 			} else {
 				assert false : "Cannot match ends of association"+association.getName()+" with those of super association "+superAss.getName();
@@ -504,9 +508,9 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 			final String refPackageIri = getIri(ePackage);
 			final String refPackageNamespace = refPackageIri + getSeparator(ePackage);
 			final String refPackagePrefix = getPrefix(ePackage);
+			String superRelationIri = getTermIriAndImportIfNeeded(vocabulary, refPackageNamespace, superRefName, refPackagePrefix);
 			
-			String superRelationIri = getTermIriAndImportIfNeeded(vocabulary, refPackageNamespace, refName, refPackagePrefix);
-			oml.addSpecializationAxiom(vocabulary, relation.getIri(), superRelationIri);
+			oml.addSpecializationAxiom(vocabulary, subRelation.getIri(), superRelationIri);
 		}
 
 		// Relation restrictions

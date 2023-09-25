@@ -18,9 +18,8 @@
 package io.opencaesar.ecore2oml;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +36,13 @@ class AssociationBuilder {
 	
 	private Resource inputResource;
 
-	private Map<EReference, Association> associations = new HashMap<>();
+	private Map<EReference, Association> associations = new LinkedHashMap<>();
 
 	private List<Set<Association>> associationGroups = new ArrayList<>();
 
 	public class Association {
-		public Set<Association> supers = new HashSet<>();
-		public Set<Association> subs = new HashSet<>();
+		public Set<Association> supers = new LinkedHashSet<>();
+		public Set<Association> subs = new LinkedHashSet<>();
 		public List<EReference> ends = new ArrayList<>();
 		public EReference forward;
 		public EReference reverse;
@@ -54,7 +53,7 @@ class AssociationBuilder {
 			return name;
 		}
 		public String getForwardName() {
-			return (forward != null) ? getRelationName(forward) : "";
+			return (forward != null) ? getRelationName(forward) : "=>(reverse) "+getRelationName(reverse);
 		}
 		public String getReverseName() {
 			return (reverse != null) ? getRelationName(reverse) : "";
@@ -93,6 +92,7 @@ class AssociationBuilder {
 		for (Association a : associations.values()) {
 			putInAssociationGroup(a, null);
 		}
+		
 		// determine the forward ends consistently within each group 
 		for (Set<Association> g : associationGroups) {
 			fixOrderOfEndsInGroup(g);
@@ -104,9 +104,9 @@ class AssociationBuilder {
 	}
 
 	private void removeRedundantSupers(Association a) {
-		Map<Association, Set<Association>> superMap = new HashMap<>();
+		Map<Association, Set<Association>> superMap = new LinkedHashMap<>();
 		a.supers.forEach(i -> superMap.put(i, getAllSupers(i)));
-		Set<Association> redundants = new HashSet<>();
+		Set<Association> redundants = new LinkedHashSet<>();
 		Iterator<Association> i = a.supers.iterator();
 		while (i.hasNext()) {
 			Association superAss = i.next();
@@ -120,7 +120,7 @@ class AssociationBuilder {
 	}
 	
 	private Set<Association> getAllSupers(Association a) {
-		Set<Association> allSupers = new HashSet<>();
+		Set<Association> allSupers = new LinkedHashSet<>();
 		for (Association superAss : a.supers) {
 			allSupers.add(superAss);
 			allSupers.addAll(getAllSupers(superAss));
@@ -159,7 +159,7 @@ class AssociationBuilder {
 					return;
 				}
 			}
-			group = new HashSet<>();
+			group = new LinkedHashSet<>();
 			associationGroups.add(group);
 		}
 		if (!group.contains(a)) {
@@ -174,10 +174,10 @@ class AssociationBuilder {
 	}	
 	
 	private void fixOrderOfEndsInGroup(Set<Association> group) {
-		// find the root if inheritance
+		// find the root of inheritance
 		Set<Association> roots = group.stream()
 				.filter(a -> a.supers.isEmpty())
-				.collect(Collectors.toSet());
+				.collect(Collectors.toCollection(LinkedHashSet::new));
 		
 		// find the first clear forward from the roots
 		EReference forward = roots.stream()
@@ -256,6 +256,7 @@ class AssociationBuilder {
 				//one = ref1.getName().compareTo(ref2.getName()) > 0 ? ref1 : ref2;
 			//}
 		}
+		assert (one == null);
 		return one;
 	}
 
