@@ -569,14 +569,14 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		final Ontology ontology = member.getOntology(); 
 
 		// add rdfs:label
-		oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "label", "rdfs"), oml.createQuotedLiteral(ontology, object.getName(), null, null), null);
+		oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "label", "rdfs"), oml.createQuotedLiteral(ontology, object.getName(), null, null));
 
 		// add rfds:comment
 		EAnnotation genModel = object.getEAnnotation(GEN_MODEL_IRI);
 		if (genModel != null) {
 			String doc = genModel.getDetails().get("documentation");
 			if (doc != null) {
-				oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "comment", "rdfs"), oml.createQuotedLiteral(ontology, doc.trim(), null, null), null);
+				oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "comment", "rdfs"), oml.createQuotedLiteral(ontology, doc.trim(), null, null));
 			}
 		}
 	}
