@@ -25,6 +25,7 @@ Args
 --referenced-ecore-path | -r path/to/referenced/ecore/file [Optional]
 --input-file-extension | -ie Extension of input file [Optional, ecore/xcore by default]
 --output-file-extension | -oe Extension of output file (Optional, oml by default, other options omlxmi and omljson)
+--namespace-map | -ns Mapping of old namespace prefix to new namespace prefix (Optional, syntax is oldNsPrefix=newNsPrefix)
 --debug | -d Shows debug statements
 --help | -h Shows help
 ```
@@ -45,5 +46,6 @@ task ecore2oml(type:io.opencaesar.ecore2oml.Ecore2OmlTask) {
 	referencedEcorePaths = [ file('path/to/options/file.json') ] // Optional
 	inputFileExtensions = ['ecore', 'xcore'] // Optional
 	outputFileExtension = 'oml' // Optional (other options, omlxmi or omljson)
+	namespaceMap = [ 'oldNsPrefix=newNsPrefix' ] // Optional
 }               
 ```

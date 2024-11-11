@@ -73,6 +73,15 @@ public abstract class Ecore2OmlTask extends DefaultTask {
     public abstract Property<String> getOutputFileExtension();
 
     /**
+	 * The namespace Mappings
+	 * 
+	 * @return String List Property
+	 */
+    @Optional
+    @Input
+    public abstract ListProperty<String> getNamespaceMap();
+
+    /**
 	 * The debug flag
 	 * 
 	 * @return Boolean Property
@@ -110,6 +119,12 @@ public abstract class Ecore2OmlTask extends DefaultTask {
         if (getOutputFileExtension().isPresent()) {
 		    args.add("-oe");
 		    args.add(getOutputFileExtension().get());
+        }
+        if (getNamespaceMap().isPresent()) {
+        	for (var ns : getNamespaceMap().get()) {
+    		    args.add("-ns");
+    		    args.add(ns);
+        	}
         }
 		if (getDebug().isPresent() && getDebug().get()) {
 		    args.add("-d");

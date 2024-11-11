@@ -18,17 +18,14 @@
 package io.opencaesar.ecore2oml;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.eclipse.emf.common.util.URI;
-import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EClassifier;
@@ -39,18 +36,19 @@ import org.eclipse.emf.ecore.ENamedElement;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
+import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreSwitch;
 
-import io.opencaesar.ecore2oml.AssociationBuilder.Association;
-import io.opencaesar.oml.Aspect;
+import io.opencaesar.ecore2oml.Ecore2OmlApp.Options;
+import io.opencaesar.ecore2oml.EcoreUtilities.ERelationBuilder;
+import io.opencaesar.ecore2oml.EcoreUtilities.ERelationBuilder.ERelation;
 import io.opencaesar.oml.CardinalityRestrictionKind;
-import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.ConceptInstance;
 import io.opencaesar.oml.Description;
+import io.opencaesar.oml.Element;
 import io.opencaesar.oml.Entity;
-import io.opencaesar.oml.ImportKind;
 import io.opencaesar.oml.Literal;
 import io.opencaesar.oml.Member;
 import io.opencaesar.oml.Ontology;
@@ -58,377 +56,195 @@ import io.opencaesar.oml.Property;
 import io.opencaesar.oml.Relation;
 import io.opencaesar.oml.ReverseRelation;
 import io.opencaesar.oml.Scalar;
-import io.opencaesar.oml.SeparatorKind;
 import io.opencaesar.oml.UnreifiedRelation;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.util.OmlBuilder;
 
 class Ecore2Oml extends EcoreSwitch<EObject> {
-	
-	// IRIs for Ecore metamodels
-	private static final String XML_TYPE_IRI = "http://www.eclipse.org/emf/2003/XMLType";
-	private static final String Ecore_IRI = "http://www.eclipse.org/emf/2002/Ecore";
-	private static final String EXTENDED_META_DATA_IRI = "http:///org/eclipse/emf/ecore/util/ExtendedMetaData";
-	private static final String GEN_MODEL_IRI = "http://www.eclipse.org/emf/2002/GenModel";
 
-	// Namespaces for core vocabularies
 	private static final String XSD_NS = "http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 	private static final String RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
-	private static final String OWL_NS = "http://www.w3.org/2002/07/owl#";
-
-	// XSD types
-	private static final Map<String, String> xsdTypes = new LinkedHashMap<String, String>();
-	static {
-		xsdTypes.put("eenumerator", "string");		
-		xsdTypes.put("ejavaclass", "string");		
-		xsdTypes.put("ejavaobject", "string");		
-		xsdTypes.put("estring", "string");		
-		xsdTypes.put("eint", "int");		
-		xsdTypes.put("eintegerobject", "int");		
-		xsdTypes.put("elong", "long");		
-		xsdTypes.put("eshort", "short");		
-		xsdTypes.put("eboolean", "boolean");		
-		xsdTypes.put("ebooleanobject", "boolean");		
-		xsdTypes.put("edouble", "double");		
-		xsdTypes.put("edoubleobject", "double");		
-		xsdTypes.put("efloat", "float");		
-		xsdTypes.put("efloatobject", "float");		
-		xsdTypes.put("ebigdecimal", "decimal");		
-		xsdTypes.put("ebyte", "byte");		
-		xsdTypes.put("echar", "string");		
-		xsdTypes.put("edate", "dateTime");		
-		xsdTypes.put("eelist", "string");		
-		xsdTypes.put("ediagnosticchain", "string");		
-		xsdTypes.put("efeaturemap", "string");		
-		xsdTypes.put("efeaturemapentry", "string");		
-		xsdTypes.put("emap", "string");		
-		xsdTypes.put("etreeiterator", "string");		
-		xsdTypes.put("einvocationtargetexception", "string");		
-		xsdTypes.put("eresource", "string");		
-		xsdTypes.put("eresourceset", "string");		
-		xsdTypes.put("anyuri", "anyURI");
-		xsdTypes.put("base64binary", "base64Binary");
-		xsdTypes.put("boolean", "boolean");
-		xsdTypes.put("booleanobject", "boolean");
-		xsdTypes.put("byte", "byte");
-		xsdTypes.put("byteobject", "byte");
-		xsdTypes.put("date", "dateTime");
-		xsdTypes.put("datetime", "dateTime");
-		xsdTypes.put("decimal", "decimal");
-		xsdTypes.put("double", "double");
-		xsdTypes.put("doubleobject", "double");
-		xsdTypes.put("float", "float");
-		xsdTypes.put("floatobject", "float");
-		xsdTypes.put("hexbinary", "hexBinary");
-		xsdTypes.put("int", "int");
-		xsdTypes.put("intObject", "int");
-		xsdTypes.put("integer", "integer");
-		xsdTypes.put("language", "language");
-		xsdTypes.put("long", "long");
-		xsdTypes.put("longObject", "long");
-		xsdTypes.put("ncname", "NCName");
-		xsdTypes.put("nmtoken", "NMTOKEN");
-		xsdTypes.put("name", "Name");
-		xsdTypes.put("negativeinteger", "negativeInteger");
-		xsdTypes.put("nonnegativeinteger", "nonNegativeInteger");
-		xsdTypes.put("nonpositiveinteger", "nonPositiveInteger");
-		xsdTypes.put("normalizedstring", "normalizedString");
-		xsdTypes.put("positiveinteger", "positiveInteger");
-		xsdTypes.put("short", "short");
-		xsdTypes.put("shortobject", "short");
-		xsdTypes.put("string", "string");
-		xsdTypes.put("time", "dateTime");
-		xsdTypes.put("token", "token");
-		xsdTypes.put("unsignedbyte", "unsignedByte");
-		xsdTypes.put("unsignedbyteObject", "unsignedByte");
-		xsdTypes.put("unsignedint", "unsignedInt");
-		xsdTypes.put("unsignedintobject", "unsignedInt");
-		xsdTypes.put("unsignedlong", "unsignedLong");
-		xsdTypes.put("unsignedshort", "unsignedShort");
-		xsdTypes.put("unsignedshortobject", "unsignedShort");
-		xsdTypes.put("id", "string");
-		xsdTypes.put("qname", "string");
-		xsdTypes.put("unlimitednatural", "string");
-	}
-
-	// OWL types
-	private static final Map<String, String> owlTypes = new LinkedHashMap<String, String>();
-	static {
-		owlTypes.put("real", "real");		
-		owlTypes.put("rational", "rational");		
-	}
-
-	// RDFS types
-	private static final Map<String, String> rdfsTypes = new LinkedHashMap<String, String>();
-	static {
-		rdfsTypes.put("literal", "Literal");		
-	}
-
-	// RDF types
-	private static final Map<String, String> rdfTypes = new LinkedHashMap<String, String>();
-	static {
-		rdfTypes.put("plainliteral", "PlainLiteral");		
-		rdfTypes.put("xmlliteral", "XMLLiteral");		
-	}
-
-	private final File inputFolder;
-	private final Resource inputResource;
-	private final File outputFolder;
-	private final String outputFileExtension;
-	private final OmlBuilder oml;
-
-	private AssociationBuilder associations;
-	private Set<URI> newURIs = new LinkedHashSet<>();
-	private Set<URI> importedURIs = new LinkedHashSet<>();
-
-	private Map<Object, Ontology> rootToOntology = new LinkedHashMap<>();
 	
-	public Ecore2Oml(File inputFolder, Resource inputResource, File outputFolder, String outputFileExtension, OmlBuilder oml) {
-		this.inputFolder = inputFolder;
+	private final Resource inputResource;
+	private final OmlBuilder oml;
+	private final Options options;
+
+	private final Map<Object, Element> ecore2Oml;
+	private final ERelationBuilder eRelationBuilder;
+	
+	
+	public Ecore2Oml(Resource inputResource, OmlBuilder oml, Options options) {
 		this.inputResource = inputResource;
-		this.outputFolder = outputFolder;
-		this.outputFileExtension = outputFileExtension;
 		this.oml = oml;
-		this.associations = new AssociationBuilder(inputResource);
+		this.options = options;
+		
+		this.ecore2Oml = new HashMap<>();
+		this.eRelationBuilder = new ERelationBuilder();
 	}
 
-	public Set<URI> run() {
-		// now process the model content
+	public void run() {
+		// iterate over the model contents to convert it
 		for (EObject root : inputResource.getContents()) {
 			doSwitch(root);
 		}
-		return newURIs;
-	}
-	
-	public Set<URI> getImportedURIs() {
-		return importedURIs;
-	}
-
-	private URI addImportedURI(EObject root) {
-		URI uri = root.eResource().getURI();
-		if (uri != null) {
-			importedURIs.add(uri);
-		}
-		return uri;
-	}
-
-	private URI addNewURI(String iri) {
-		URI uri = getMappedResourceURI(iri);
-		if (uri != null) {
-			newURIs.add(uri);
-		}
-		return uri;
-	}
-	
-	private URI getMappedResourceURI(String iri) {
-		var uri = URI.createURI(iri);
-		var relativePath = uri.authority()+uri.path()+"."+outputFileExtension;
-		return URI.createFileURI(outputFolder.getAbsolutePath()+File.separator+relativePath);
-	}
-	
-	@Override
-	public EObject defaultCase(EObject object) {
-		if (object.eContainer() == null) {
-			createDescription(object);
-		}
-		if (object instanceof EAnnotation) {
-			return null;
-		}
-		return caseEObject(object);
-	}
-
-	protected Description createDescription(EObject object) {
-		if (rootToOntology.get(inputResource) == null) {
-			File inputFile = new File(inputResource.getURI().trimFileExtension().toFileString());
-			String relativePath = inputFolder.toURI().relativize(inputFile.toURI()).getPath();
-			final String iri = "http://" + relativePath;
-			final String namespace = iri+SeparatorKind.HASH;
-			final String pefix = inputFile.getName();
-			
-			Description description = oml.createDescription(addNewURI(iri), namespace, pefix);
-			rootToOntology.put(object.eResource(), description);
-			return description;
-		}
-		return (Description) rootToOntology.get(inputResource);
-	}
-
-	protected EObject caseEObject(EObject object) {
-		if (object.eClass().getEPackage() == EcorePackage.eINSTANCE) {
-			return null;
-		}
-		final Description description = (Description) rootToOntology.get(object.eResource()); 
-		ConceptInstance instance = oml.addConceptInstance(description, object.eResource().getURIFragment(object));
-		String typeIri = getIri(description, object.eClass());
-		oml.addTypeAssertion(description, instance.getIri(), typeIri);
-		object.eContents().forEach(i -> defaultCase(i));
-		return instance;
 	}
 	
 	@Override
 	public EObject caseEPackage(EPackage object) {
-		final String iri = getIri(object);
-		final String namespace = iri+getSeparator(object);
+		final String namespace = getNamespace(object);
 		final String pefix = getPrefix(object);
+		final URI uri = getUri(namespace);
 		
-		Vocabulary vocabulary = oml.createVocabulary(addNewURI(iri), namespace, pefix);
-		rootToOntology.put(object, vocabulary);
+		// create the vocabulary
+		Vocabulary vocabulary = oml.createVocabulary(uri, namespace, pefix);
+		ecore2Oml.put(object, vocabulary);
 
-		// build the associations first
+		// if the root package, build eRelations
 		if (object.getESuperPackage() == null) {
-			associations.build();
+			eRelationBuilder.build(inputResource);
 		}
 		
-		object.getEClassifiers().stream().forEach(c -> doSwitch(c));
+		// add annotations
+		addOntologyAnnotations(vocabulary, object);
+		
+		// iterate over sub packages
 		object.getESubpackages().stream().forEach(p -> doSwitch(p));
 
+		// iterate over classifiers
+		object.getEClassifiers().stream().forEach(c -> doSwitch(c));
+		
 		return vocabulary;
 	}
 
 	@Override
+	public EObject caseEClass(EClass object) {
+		// special case: ignore the XML Document Root class
+		if (object.getEReferences().stream().anyMatch(i -> i.getName().equals("xMLNSPrefixMap"))) {
+			return null;
+		}
+
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEPackage()); 
+
+		// create the entity
+		final Entity entity;
+		if (EcoreUtilities.isAbstract(object)) {
+			entity = oml.addAspect(vocabulary, object.getName());
+		} else {
+			entity = oml.addConcept(vocabulary, object.getName());
+		}
+		ecore2Oml.put(object, entity);
+
+		// add annotations
+		addMemberAnnotations(vocabulary, entity, object);
+		
+		// add specializations
+		object.getESuperTypes().stream().filter(i -> !i.eIsProxy()).forEach( sup -> {
+			oml.addSpecializationAxiom(vocabulary, entity.getIri(), getIri(sup));
+		});
+		
+		// add properties
+		object.getEStructuralFeatures().stream().forEach(f -> doSwitch(f));
+		
+		return entity;
+	}
+
+	@Override
+	public EObject caseEDataType(EDataType object) {
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEPackage()); 
+
+		// create scalar
+		final Scalar scalar = oml.addScalar(vocabulary, object.getName());
+		ecore2Oml.put(object, scalar);
+
+		// add annotations
+		addMemberAnnotations(vocabulary, scalar, object);
+
+		// add equivalences
+		//TODO: map facet restrictions
+		oml.addScalarEquivalenceAxiom(vocabulary, scalar.getIri(), getBaseIri(object), null, null, null, null, null, null, null, null, null);
+
+		// Handle the case of scalar that is a union of enums (generated by XML adapter)
+		if (object.getInstanceClassName().equals("org.eclipse.emf.common.util.Enumerator")) {
+			final String memberTypes = EcoreUtilities.getExtendedMetadataProperty(object, "memberTypes");
+			if (memberTypes != null) {
+				final List<Literal> literals = Arrays.asList(memberTypes.split(" ")).stream()
+						.map(t -> (EDataType) object.getEPackage().getEClassifier(t))
+						.filter(t -> t instanceof EEnum)
+						.map(t -> (EEnum)t)
+						.flatMap(t -> t.getELiterals().stream())
+						.map(l -> (Literal)doSwitch(l))
+						.collect(Collectors.toList());
+				if (!literals.isEmpty()) {
+					oml.addLiteralEnumerationAxiom(vocabulary, scalar.getIri(), literals.toArray(new Literal[0]));
+				}
+			}
+		}
+		
+		return scalar;
+	}
+
+	@Override
 	public EObject caseEEnum(EEnum object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
-		final String name = getEnumeratedScalarName(object);
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEPackage()); 
+
+		// create scalar
+		final Scalar scalar = oml.addScalar(vocabulary, object.getName());
+		ecore2Oml.put(object, scalar);
+
+		// add annotations
+		addMemberAnnotations(vocabulary, scalar, object);
+
+		// add literals
 		final Literal[] literals = object.getELiterals().stream().map(i -> doSwitch(i)).toArray(Literal[]::new);
-		final Scalar scalar = oml.addScalar(vocabulary, name);
 		oml.addLiteralEnumerationAxiom(vocabulary, scalar.getIri(), literals);
-		addAnnotations(scalar, object);
+		
 		return scalar;
 	}
 	
 	@Override
 	public EObject caseEEnumLiteral(EEnumLiteral object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEEnum().getEPackage()); 
-		final String name = getEnumerationLiteralName(object);
-
-		return oml.createQuotedLiteral(vocabulary, name, null, null);
-	}
-
-	@Override
-	public EObject caseEDataType(EDataType object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
-		final String name = getFacetedScalarName(object);
-
-		// Get any specified base type
-		final EAnnotation annotation = object.getEAnnotation(EXTENDED_META_DATA_IRI);
-		String baseName = name;
-		final String baseType = (annotation == null) ? null : annotation.getDetails().get("baseType");
-		if (baseType != null) {
-			String[] baseIriSegments = baseType.split(SeparatorKind.HASH.toString());
-			if (baseIriSegments.length == 2) {
-				baseName = baseIriSegments[1];
-			} else {
-				baseName = baseType;
-			}
-		}
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEEnum().getEPackage()); 
 		
-		// Get the URI of the specified base type if any
-		String baseIri = getStandardIri(vocabulary, baseName);
-		if (baseIri == null) {
-			EClassifier base = object.getEPackage().getEClassifier(baseName);
-			if (base != null && base != object) {
-				baseIri = vocabulary.getIri()+SeparatorKind.HASH+baseName;
-			} else {
-				baseIri = getTermIriAndImportIfNeeded(vocabulary, RDFS_NS,  "Literal", "rdfs");
-			}				
-		}
-
-		final Scalar scalar = oml.addScalar(vocabulary, name);
-		addAnnotations(scalar, object);
-		oml.addScalarEquivalenceAxiom(vocabulary, scalar.getIri(), baseIri, null, null, null, null, null, null, null, null, null);
-
-		// Handle the case of EnumObject datatype (generated by XML adapter)
-		if (object.getInstanceClassName().equals("org.eclipse.emf.common.util.Enumerator")) {
-			final List<Literal> literals = new ArrayList<>();
-			final String memberTypes = (annotation == null) ? null : annotation.getDetails().get("memberTypes");
-			if (memberTypes != null) {
-				for (String type : memberTypes.split(" ")) {
-					EDataType dataType = (EDataType) object.getEPackage().getEClassifier(type);
-					if (dataType instanceof EEnum) {
-						literals.addAll(((EEnum)dataType).getELiterals().stream().map(i -> (Literal)doSwitch(i)).collect(Collectors.toList()));
-					}
-				}
-				oml.addLiteralEnumerationAxiom(vocabulary, scalar.getIri(), literals.toArray(new Literal[0]));
-			}
-		}
-
-		return scalar;
-	}
-
-	@Override
-	public EObject caseEClass(EClass object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
-		final boolean isXMLDocumentRootClass = object.getEReferences().stream().anyMatch(i -> i.getName().equals("xMLNSPrefixMap"));
-		
-		// ignore the XML Document Root class
-		if (isXMLDocumentRootClass) {
-			return null;
-		}
-		
-		Entity entity = null;
-		if (isAspect(object)) {
-			entity = caseEClassToAspect(object);
-		} else {
-			entity = caseEClassToConcept(object);
-		}
-		for (EClass eSuperType : object.getESuperTypes()) {
-			if (!eSuperType.eIsProxy()) {
-				String superIri = getIri(vocabulary, eSuperType);
-				if (superIri != null) {
-					oml.addSpecializationAxiom(vocabulary, entity.getIri(), superIri);
-				}
-			}
-		}
-		addAnnotations(entity, object);
-		
-		object.getEStructuralFeatures().stream().forEach(f -> doSwitch(f));
-		
-		return entity;
-	}
-	
-	private Aspect caseEClassToAspect(EClass object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
-		return oml.addAspect(vocabulary, getAspectName(object));
-	}
-
-	private Concept caseEClassToConcept(EClass object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEPackage()); 
-		return oml.addConcept(vocabulary, getConceptName(object));
+		// create literal
+		return oml.createQuotedLiteral(vocabulary, object.getLiteral(), null, null);
 	}
 
 	@Override
 	public EObject caseEAttribute(EAttribute object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEContainingClass().getEPackage()); 
-		final EClass domain = object.getEContainingClass();
-		final EDataType range = object.getEAttributeType();
-		final boolean isFeatureMap = object.getEType().getName().equals("EFeatureMapEntry");
-		
-		if (isFeatureMap) {
+		// special case: ignore a feature map entry
+		if (object.getEAttributeType().getName().equals("EFeatureMapEntry")) {
 			return null;
 		}
-
-		// find the domain
-		String domainIri = getIri(vocabulary, domain);
-		// find the range
-		String rangeIri = getIri(vocabulary, range);
-
-		// create Property
-		final String name = getScalarPropertyName(object);
+		
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEContainingClass().getEPackage()); 
+		
+		// create property
+		final String name = getName(object);
+		final String domainIri = getIri(object.getEContainingClass());
+		final String rangeIri = getIri(object.getEAttributeType());
 		final boolean isFunctional = object.getUpperBound() == 1;
 		Property property = oml.addScalarProperty(vocabulary, name, Collections.singletonList(domainIri), Collections.singletonList(rangeIri), isFunctional);
-		addAnnotations(property, object);
+		ecore2Oml.put(object, property);
 
-		// Property specialization
-		for (EAttribute attr : getSuperEAttributes(object)) {
-			final String attrPackageIri = getIri(attr.getEContainingClass().getEPackage());
-			final String attrPackageNamespace = attrPackageIri + getSeparator(attr.getEContainingClass().getEPackage());
-			final String attrPackagePrefix = getPrefix(attr.getEContainingClass().getEPackage());
-			final String attrName = getScalarPropertyName(attr);
-			String baseIri = getTermIriAndImportIfNeeded(vocabulary, attrPackageNamespace, attrName, attrPackagePrefix);
-			oml.addSpecializationAxiom(vocabulary, property.getIri(), baseIri);
+		// add annotations
+		addMemberAnnotations(vocabulary, property, object);
+
+		// add isOrdered annotation
+		if (object.isOrdered()) {
+			getMinimalEcoreVocabulary();
+			oml.addAnnotation(vocabulary, property.getIri(), getMappedIri(EcoreUtilities.getEcoreProperty("isOrdered")), new Literal[0]);
 		}
+
+		// add specializations
+		EcoreUtilities.getSuperEAttributes(object).forEach( sup -> oml.addSpecializationAxiom(vocabulary, property.getIri(), getIri(sup)));
 		
-		// Property restrictions
+		// add restrictions
 		if (object.getLowerBound() > 0 || object.getUpperBound() > 1) {
 			if (object.getLowerBound() == object.getUpperBound()) {
 				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, domainIri, property.getIri(), CardinalityRestrictionKind.EXACTLY, object.getLowerBound(), null);
@@ -445,87 +261,92 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 		return property;
 	}
 
-	private Set<EReference> eReferencesCache = new LinkedHashSet<EReference>();
-
 	@Override
 	public EObject caseEReference(EReference object) {
-		final Vocabulary vocabulary = (Vocabulary) rootToOntology.get(object.getEContainingClass().getEPackage()); 
-
-		if (eReferencesCache.contains(object)) {
+		// ignore if we already processed
+		if (ecore2Oml.containsKey(object)) {
 			return null;
 		}
 
-		final Association association = associations.get(object);
-		final EReference reference = association.forward;
-		final EReference opposite = association.reverse;
+		// get the vocabulary
+		final Vocabulary vocabulary = (Vocabulary) ecore2Oml.get(object.getEContainingClass().getEPackage()); 
 
-		final EClass source = (reference != null) ? reference.getEContainingClass() : opposite.getEReferenceType();
-		final EClass target = (reference != null) ? reference.getEReferenceType() : opposite.getEContainingClass();
+		// get the calculated eRelation
+		final ERelation eRelation = eRelationBuilder.get(object);
+		
+		// get the two references
+		final EReference reference = eRelation.forward;
+		final EReference opposite = eRelation.reverse;
+
+		// gather characteristics
+		final String sourceIri = getIri((reference != null) ? reference.getEContainingClass() : opposite.getEReferenceType());
+		final String targetIri = getIri((reference != null) ? reference.getEReferenceType() : opposite.getEContainingClass());
 		final boolean isFunctional = (reference != null) ? reference.getUpperBound()==1 : false;
 		final boolean isInverseFunctional = (opposite != null) ? opposite.getLowerBound()==1 : false;
 
-		// the relation entity's source
-		String sourceIri = getIri(vocabulary, source);
-
-		// the relation entity's target
-		String targetIri = getIri(vocabulary, target);
-
-		// the unreified relation
+		// create unreified relation
 		UnreifiedRelation relation = null;
 		if (reference != null) {
 			relation = oml.addUnreifiedRelation(
-				vocabulary, association.getForwardName(), Collections.singletonList(sourceIri), Collections.singletonList(targetIri), isFunctional, isInverseFunctional,
+				vocabulary, getName(reference), 
+				Collections.singletonList(sourceIri), 
+				Collections.singletonList(targetIri), 
+				isFunctional, isInverseFunctional,
 				false, false, false, false, false);
-			addAnnotations(relation, reference);
-			eReferencesCache.add(reference);
-		}
-		
-		// the reverse relation
-		ReverseRelation reverse = null;
-		if (opposite != null) {
-			if (relation != null) {
-				String reverseName = association.getReverseName();
-				reverse = oml.addReverseRelation(relation, reverseName);
-				addAnnotations(reverse, opposite);
-			} else {
-				relation = oml.addUnreifiedRelation(
-					vocabulary, association.getReverseName(), Collections.singletonList(targetIri), Collections.singletonList(sourceIri), isInverseFunctional, isFunctional,
-					false, false, false, false, false);
-				addAnnotations(relation, opposite);
+			ecore2Oml.put(reference, relation);
+			
+			// add annotations
+			addMemberAnnotations(vocabulary, relation, reference);
+			
+			// add isOrdered annotation
+			if (reference.isOrdered()) {
+				getMinimalEcoreVocabulary();
+				oml.addAnnotation(vocabulary, relation.getIri(), getMappedIri(EcoreUtilities.getEcoreProperty("isOrdered")), new Literal[0]);
 			}
-			eReferencesCache.add(opposite);
-		}
-		
-		// Relation specialization
-		for (Association superAss : association.supers) {
-			final EReference superReference = superAss.forward;
-			final EReference superOpposite = superAss.reverse;
-			
-			Relation subRelation = null;
-			
-			String superRefName = null;
-			EPackage ePackage = null;
-			if (reference != null && superReference != null) {
-				subRelation = relation;
-				superRefName = superAss.getForwardName();
-				ePackage = superReference.getEContainingClass().getEPackage();
-			} else if (opposite != null && superOpposite != null) {
-				subRelation = (reverse != null) ? reverse : relation;
-				superRefName = superAss.getReverseName();
-				ePackage = superOpposite.getEContainingClass().getEPackage();
-			} else {
-				assert false : "Cannot match ends of association"+association.getName()+" with those of super association "+superAss.getName();
-			}
-			
-			final String refPackageIri = getIri(ePackage);
-			final String refPackageNamespace = refPackageIri + getSeparator(ePackage);
-			final String refPackagePrefix = getPrefix(ePackage);
-			String superRelationIri = getTermIriAndImportIfNeeded(vocabulary, refPackageNamespace, superRefName, refPackagePrefix);
-			
-			oml.addSpecializationAxiom(vocabulary, subRelation.getIri(), superRelationIri);
-		}
 
-		// Relation restrictions
+			// create reverse
+			if (opposite != null) {
+				final ReverseRelation reverse = oml.addReverseRelation(relation, getName(opposite));
+				ecore2Oml.put(opposite, reverse);
+
+				// add annotations
+				addMemberAnnotations(vocabulary, reverse, opposite);
+			}
+		} else if (opposite != null) {
+			relation = oml.addUnreifiedRelation(
+					vocabulary, getName(opposite), 
+					Collections.singletonList(targetIri),
+					Collections.singletonList(sourceIri), 
+					isInverseFunctional, isFunctional,
+					false, false, false, false, false);
+			ecore2Oml.put(opposite, relation);
+				
+			// add annotations
+			addMemberAnnotations(vocabulary, relation, opposite);
+
+			// add isOrdered annotation
+			if (opposite.isOrdered()) {
+				getMinimalEcoreVocabulary();
+				oml.addAnnotation(vocabulary, relation.getIri(), getMappedIri(EcoreUtilities.getEcoreProperty("isOrdered")), new Literal[0]);
+			}
+		}
+		
+		// add specializations
+		for (ERelation superERelation : eRelation.supers) {
+			final EReference superReference = superERelation.forward;
+			final EReference superOpposite = superERelation.reverse;
+			if (reference != null && superReference != null) {
+				Relation subRelation = relation;
+				oml.addSpecializationAxiom(vocabulary, subRelation.getIri(), getIri(superReference));
+			} else if (opposite != null && superOpposite != null) {
+				Relation subRelation = (relation.getReverseRelation() != null) ? relation.getReverseRelation() : relation;
+				oml.addSpecializationAxiom(vocabulary, subRelation.getIri(), getIri(superOpposite));
+			} else {
+				assert false : "Cannot match ends of association"+eRelation+" with those of super association "+superERelation;
+			}
+		}
+		
+		// add restrictions on source
 		if (reference != null && (reference.getLowerBound() > 0 || reference.getUpperBound() > 1)) {
 			if (reference.getLowerBound() == reference.getUpperBound()) {
 				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, sourceIri, relation.getIri(), CardinalityRestrictionKind.EXACTLY, reference.getLowerBound(), null);
@@ -539,154 +360,180 @@ class Ecore2Oml extends EcoreSwitch<EObject> {
 			}
 		}
 		
-		// Opposite restrictions
-		if (reverse != null && (opposite.getLowerBound() > 0 || opposite.getUpperBound() > 1))	 {
+		// add restrictions on target
+		if (relation.getReverseRelation() != null && (opposite.getLowerBound() > 0 || opposite.getUpperBound() > 1))	 {
 			if (opposite.getLowerBound() == opposite.getUpperBound()) {
-				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.EXACTLY, opposite.getLowerBound(), null);
+				oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, relation.getReverseRelation().getIri(), CardinalityRestrictionKind.EXACTLY, opposite.getLowerBound(), null);
 			} else {
-				if (reference.getLowerBound() > 0) {
-					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.MIN, opposite.getLowerBound(), null);
+				if (opposite.getLowerBound() > 0) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, relation.getReverseRelation().getIri(), CardinalityRestrictionKind.MIN, opposite.getLowerBound(), null);
 				}
-				if (reference.getUpperBound() > 1) {
-					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, reverse.getIri(), CardinalityRestrictionKind.MAX, opposite.getUpperBound(), null);
+				if (opposite.getUpperBound() > 1) {
+					oml.addPropertyCardinalityRestrictionAxiom(vocabulary, targetIri, relation.getReverseRelation().getIri(), CardinalityRestrictionKind.MAX, opposite.getUpperBound(), null);
 				}
 			}
 		}
 
 		return relation;
 	}
-
-	//----------------------------------------------------------------------
-	// Utilities
-	//----------------------------------------------------------------------
-
-	private boolean isAspect(EClass object) {
-		return (object.eIsProxy() || object.isAbstract() || object.isInterface()) && 
-				object.getESuperTypes().stream().allMatch(i -> isAspect(i));
+	
+	@Override
+	public EObject defaultCase(EObject object) {
+		// ignore any Ecore object since we already handle them
+		if (object.eClass().getEPackage() == EcorePackage.eINSTANCE) {
+			return null;
+		}
+		// create concept instance
+		return createConceptInstance(object);
 	}
 
-	private void addAnnotations(Member member, ENamedElement object) {
-		final Ontology ontology = member.getOntology(); 
+	protected ConceptInstance createConceptInstance(EObject object) {
+		// get the description (assumption is that there is a single one)
+		Description description = (Description) getDescription();
+		
+		// create concept instance
+		ConceptInstance instance = oml.addConceptInstance(description, getName(object));
+		ecore2Oml.put(object, instance);
+		
+		// add annotations
+		addMemberAnnotations(description, instance, object);
+		
+		// add type
+		oml.addTypeAssertion(description, instance.getIri(), getIri(object.eClass()));
+		
+		// add nested contents
+		object.eContents().forEach(i -> doSwitch(i));
+		
+		return instance;
+	}
+	
+	protected Description getDescription() {
+		var description = (Description) ecore2Oml.get("description");
+		if (description == null) {
+			final var inputUri = inputResource.getURI();
+			final var relativePath = inputUri.authority()+inputUri.path()+"."+options.outputFileExtension;
+			final var uri = URI.createFileURI(options.outputFolderPath+File.separator+relativePath);
+			
+			final var iri = "http://" + relativePath;
+			final var namespace = iri+"#";
+			final var pefix = URI.createURI(iri).lastSegment();
+				
+			// create description
+			description = oml.createDescription(uri, namespace, pefix);
+			ecore2Oml.put("description", description);
+		}
+		return description;
+	}
 
+	protected Vocabulary getMinimalEcoreVocabulary( ) {
+		var vocabulary = (Vocabulary) ecore2Oml.get("ecoreVocabulary");
+		if (vocabulary == null) {
+			final String namespace = EcoreUtilities.getEcoreNamespace();
+			vocabulary = oml.createVocabulary(getUri(namespace), namespace, "ecore");
+			ecore2Oml.put("ecoreVocabulary", vocabulary);
+			
+			oml.addAnnotationProperty(vocabulary, "isOrdered");
+			oml.addScalarProperty(vocabulary, "order", Collections.singletonList(RDF_NS+"Statement"),  Collections.singletonList(XSD_NS+"int"), false);
+		}
+		return vocabulary;
+	}
+
+	private void addOntologyAnnotations(Ontology ontology, ENamedElement object) {
 		// add rdfs:label
-		oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "label", "rdfs"), oml.createQuotedLiteral(ontology, object.getName(), null, null));
+		var name = object.getName();
+		var literal = oml.createQuotedLiteral(ontology, name, null, null);
+		oml.addAnnotation(ontology, RDFS_NS+"label", literal);
 
 		// add rfds:comment
-		EAnnotation genModel = object.getEAnnotation(GEN_MODEL_IRI);
-		if (genModel != null) {
-			String doc = genModel.getDetails().get("documentation");
-			if (doc != null) {
-				oml.addAnnotation(ontology, member.getIri(), getTermIriAndImportIfNeeded(ontology, RDFS_NS, "comment", "rdfs"), oml.createQuotedLiteral(ontology, doc.trim(), null, null));
-			}
+		var documentation = EcoreUtilities.getGenModelProperty(object, "documentation");
+		if (documentation != null) {
+			literal = oml.createQuotedLiteral(ontology, documentation.trim(), null, null);
+			oml.addAnnotation(ontology, RDFS_NS+"comment", literal);
 		}
 	}
+
+	private void addMemberAnnotations(Ontology ontology, Member member, ENamedElement object) {
+		// add rdfs:label
+		var name = object.getName();
+		var literal = oml.createQuotedLiteral(ontology, name, null, null);
+		oml.addAnnotation(ontology, member.getIri(), RDFS_NS+"label", literal);
+
+		// add rfds:comment
+		var documentation = EcoreUtilities.getGenModelProperty(object, "documentation");
+		if (documentation != null) {
+			literal = oml.createQuotedLiteral(ontology, documentation.trim(), null, null);
+			oml.addAnnotation(ontology, member.getIri(), RDFS_NS+"comment", literal);
+		}
+	}
+
+	protected void addMemberAnnotations(Ontology ontology, Member member, EObject object) {
+		// add rdfs:label
+		var name = object.eResource().getURIFragment(object);
+		var literal = oml.createQuotedLiteral(ontology, name, null, null);
+		oml.addAnnotation(ontology, member.getIri(), RDFS_NS+"label", literal);
+	}
 	
-	private String getPrefix(EPackage object) {
-		return object.getNsPrefix();
-	}	
+	//----------
+	// Utilities
+	// ---------
 
-	private SeparatorKind getSeparator(EPackage object) {
-		final String nsURI = object.getNsURI();
-		if (nsURI.endsWith("/")) {
-			return SeparatorKind.SLASH;
+	private String getName(EObject object) {
+		return object.eResource().getURIFragment(object);
+	}
+	
+	private String getName(EStructuralFeature object) {
+		return object.getEContainingClass().getName() + "_" + object.getName();
+	}
+
+	private String getIri(EStructuralFeature object) {
+		return getNamespace(object.getEContainingClass().getEPackage()) + getName(object);
+	}
+	
+	public String getBaseIri(EDataType object) {
+		final String baseType = EcoreUtilities.getExtendedMetadataProperty(object, "baseType");
+		
+		final String baseIri;
+		if (baseType == null) {
+			baseIri = RDFS_NS+"Literal"; 
+		} else if (baseType.contains("#") || baseType.contains("/")) {
+			baseIri = baseType;
 		} else {
-			return SeparatorKind.HASH;
-		}
-	}	
-
-	private String getIri(EPackage object) {
-		String nsURI = object.getNsURI();
-		if (nsURI.endsWith("#") || nsURI.endsWith("/")) {
-			nsURI = nsURI.substring(0, nsURI.length()-1);
-		}
-		return nsURI;
-	}	
-
-	private String getIri(Ontology ontology, EClassifier object) {
-		final String name = object.getName();
-		final String iri = getIri(object.getEPackage());
-		final String namespace = iri + getSeparator(object.getEPackage());
-		final String prefix =  getPrefix(object.getEPackage());
-
-		if (object instanceof EDataType) {
-			if (Ecore_IRI.equals(iri) || XML_TYPE_IRI.equals(iri)) {
-				return getStandardIri(ontology, name);
-			}
-		}
-
-		if (!ontology.getIri().equals(iri)) {
-			addImportedURI(object.getEPackage());
+			baseIri = getNamespace(object.getEPackage())+baseType;
 		}
 		
-		return getTermIriAndImportIfNeeded(ontology, namespace, name, prefix);
+		return getMappedIri(baseIri);
 	}
 
-	private String getTermIriAndImportIfNeeded(Ontology ontology, String namespace, String name, String prefix) {
-		if (!namespace.equals(ontology.getNamespace())) {
-			if (!ontology.getOwnedImports().stream().anyMatch(i -> i.getNamespace().equals(namespace))) {
-				if (ontology instanceof Vocabulary) {
-					oml.addImport((Vocabulary) ontology, ImportKind.EXTENSION, namespace, prefix);
-				} else if (ontology instanceof Description) {
-					oml.addImport((Description) ontology, ImportKind.USAGE, namespace, prefix);
-				}
-			}
-		}
-		return namespace+name;
+	private String getIri(EClassifier object) {
+		var iri = getNamespace(object.getEPackage())+object.getName();
+		return getMappedIri(iri);
 	}
 	
-	private String getStandardIri(Ontology ontology, String name) {
-		name = name.toLowerCase();
-		if (xsdTypes.containsKey(name)) {
-			return getTermIriAndImportIfNeeded(ontology, XSD_NS, xsdTypes.get(name), "xsd");
-		} else if (owlTypes.containsKey(name)) {
-			return getTermIriAndImportIfNeeded(ontology, OWL_NS, owlTypes.get(name), "owl");
-		} else if (rdfsTypes.containsKey(name)) {
-			return getTermIriAndImportIfNeeded(ontology, RDFS_NS, rdfsTypes.get(name), "rdfs");
-		} else if (rdfTypes.containsKey(name)) {
-			return getTermIriAndImportIfNeeded(ontology, RDF_NS, rdfTypes.get(name), "rdf");
+	private String getNamespace(EPackage object) {
+		String iri = object.getNsURI();
+		if (!iri.endsWith("#") && !iri.endsWith("/")) {
+			iri = iri+"#";
 		}
-		return null;
+		return getMappedIri(iri);
 	}
 
-	private Set<EAttribute> getSuperEAttributes(EAttribute object) {
-		Set<EAttribute> superRefs = new LinkedHashSet<EAttribute>() ;
-		EAnnotation ann = object.getEAnnotation("subsets");
-		if (ann != null) {
-			for (EObject ref : ann.getReferences()) {
-				superRefs.add((EAttribute)ref);
+	private String getPrefix(EPackage object) {
+		return object.getNsPrefix();
+	}
+
+	private URI getUri(String namespace) {
+		var uri = URI.createURI(namespace);
+		var relativePath = uri.authority()+uri.path()+"."+options.outputFileExtension;
+		return URI.createFileURI(options.outputFolderPath+File.separator+relativePath);
+	}
+
+	private String getMappedIri(String iri) {
+		for( var e : options.namespaceMap2.entrySet()) {
+			if (iri.startsWith(e.getKey())) {
+				return e.getValue() + iri.substring(e.getKey().length());
 			}
 		}
-		ann = object.getEAnnotation("redefines");
-		if (ann != null) {
-			for (EObject ref : ann.getReferences()) {
-				superRefs.add((EAttribute)ref);
-			}
-		}
-		return superRefs;
-	}
-
-	private String getConceptName(EClass object) {
-		return object.getName();
-	}
-	
-	private String getAspectName(EClass object) {
-		return object.getName();
-	}
-
-	private String getEnumeratedScalarName(EEnum object) {
-		return object.getName();
-	}
-
-	private String getEnumerationLiteralName(EEnumLiteral object) {
-		return object.getLiteral();
-	}
-
-	private String getFacetedScalarName(EDataType object) {
-		return object.getName();
-	}
-
-	private String getScalarPropertyName(EAttribute object) {
-		return object.getEContainingClass().getName() + "_" + object.getName();
+		return iri;
 	}
 
 }
