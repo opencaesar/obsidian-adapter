@@ -1,9 +1,11 @@
-apply plugin: 'application'
-
 ext.title = 'Ecore to Oml'
 description = 'Ecore to Oml Interface'
-mainClassName = 'io.opencaesar.ecore2oml.Ecore2OmlApp'
-applicationName = 'ecore2oml'
+
+apply plugin: 'application'
+application {
+	applicationName = 'ecore2oml'
+	mainClass = 'io.opencaesar.ecore2oml.Ecore2OmlApp'
+}
 
 dependencies {
 	implementation "com.beust:jcommander:${versions.jcommander}"
