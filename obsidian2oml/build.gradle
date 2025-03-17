@@ -1,10 +1,10 @@
-ext.title = 'Ecore to Oml'
-description = 'Ecore to Oml Interface'
+ext.title = 'Obsidian to Oml'
+description = 'Obsidian to Oml Interface'
 
 apply plugin: 'application'
 application {
-	applicationName = 'ecore2oml'
-	mainClass = 'io.opencaesar.ecore2oml.Ecore2OmlApp'
+	applicationName = 'obsidian2oml'
+	mainClass = 'io.opencaesar.obsidian2oml.Obsidian2OmlApp'
 }
 
 dependencies {

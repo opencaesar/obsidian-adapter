@@ -1,0 +1,8 @@
+ext.title = 'Obsidian to Oml Gradle'
+description = 'A gradle interface to run Obsidian to Oml'
+
+dependencies {
+	implementation gradleApi()
+    implementation project (':obsidian2oml')
+	implementation "io.opencaesar.oml:io.opencaesar.oml.dsl:${versions.oml}"
+}

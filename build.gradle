@@ -4,6 +4,7 @@ subprojects {
     
     ext.versions = [
         oml: '2.+',
+		oml_tools: '2.+',
         xmlresolver: '1.2',
         xcore: '1.22.0',
         jcommander: '1.72',
@@ -14,13 +15,12 @@ subprojects {
 
     repositories {
         mavenLocal()
-          mavenCentral()
+        mavenCentral()
     }
     
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'idea'
-    apply from: "${rootDir}/gradle/maven-deployment.gradle"
     
     java {
 	    sourceCompatibility = '17'

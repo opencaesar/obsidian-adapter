@@ -1,0 +1,20 @@
+ext.title = 'Oml to Obsidian'
+description = 'Oml to Obsidian Interface'
+
+apply from: "${rootDir}/gradle/maven-deployment.gradle"
+
+apply plugin: 'application'
+application {
+	applicationName = 'oml2obsidian'
+	mainClass = 'io.opencaesar.oml2obsidian.Oml2ObsidianApp'
+}
+
+dependencies {
+	implementation "com.beust:jcommander:${versions.jcommander}"
+	implementation "log4j:log4j:${versions.log4j}"
+	implementation "org.slf4j:slf4j-simple:${versions.slf4j}"
+	testImplementation "junit:junit:${versions.junit}"
+
+	implementation "io.opencaesar.oml:io.opencaesar.oml.dsl:${versions.oml}"
+	implementation "io.opencaesar.oml:oml-validate:${versions.oml_tools}"
+}

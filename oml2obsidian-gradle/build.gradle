@@ -1,0 +1,10 @@
+apply from: "${rootDir}/gradle/maven-deployment.gradle"
+
+ext.title = 'Oml to Obsidian Gradle'
+description = 'An gradle interface to run Oml to Obsidian'
+
+dependencies {
+	implementation gradleApi()
+    implementation project (':oml2obsidian')
+	implementation "io.opencaesar.oml:io.opencaesar.oml.dsl:${versions.oml}"
+}

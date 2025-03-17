@@ -40,7 +40,7 @@ buildscript {
 		classpath 'io.opencaesar.adapters:ecore2oml-gradle:+'
 	}
 }
-task ecore2oml(type:io.opencaesar.ecore2oml.Ecore2OmlTask) {
+task ecore2oml(type:io.opencaesar.obsidian2oml.Ecore2OmlTask) {
 	inputFolderPath = file('path/to/input/ecore/folder') // Required
 	outputFolderPath = file('path/to/output/oml/folder') // Required
 	referencedEcorePaths = [ file('path/to/options/file.json') ] // Optional

@@ -1,2 +1,4 @@
-include 'ecore2oml'
-include 'ecore2oml-gradle'
+include 'oml2obsidian'
+include 'oml2obsidian-gradle'
+include 'obsidian2oml'
+include 'obsidian2oml-gradle'
