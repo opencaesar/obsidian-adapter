@@ -1,18 +1,18 @@
-# OML to OWL
+# OML to Obsidian
 
-[![Release](https://img.shields.io/github/v/tag/opencaesar/owl-adapter?label=release)](https://github.com/opencaesar/owl-adapter/releases/latest)
+[![Release](https://img.shields.io/github/v/tag/opencaesar/obsidian-adapter?label=release)](https://github.com/opencaesar/obsidian-adapter/releases/latest)
 
-A tool to translate ontologies from an OML to an OWL representation
+A tool to translate [OML](https://opencaesar.github.io/oml) vocabularies to [Obsidian](https://obsidian.md/) files
 
 ## Run as CLI
 
 MacOS/Linux:
 ```
-./gradlew oml2owl:run --args="..."
+./gradlew oml2obsidian:run --args="..."
 ```
 Windows:
 ```
-gradlew.bat oml2owl:run --args="..."
+gradlew.bat oml2obsidian:run --args="..."
 ```
 Args:
 ```
@@ -33,10 +33,10 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'io.opencaesar.adapters:oml2owl-gradle:+'
+        classpath 'io.opencaesar.adapters:oml2obsidian-gradle:+'
     }
 }
-task oml2owl(type:io.opencaesar.oml2obsidian.Oml2OwlTask) {
+task oml2obsidian(type:io.opencaesar.oml2obsidian.Oml2ObsidianTask) {
     inputCatalogPath = file('path/to/input/oml/catalog.xml') [Required]
     rootOntologyIri = 'http://...' [Optional]
     outputCatalogPath = file('path/to/output/owl/catalog.xml') [Required]

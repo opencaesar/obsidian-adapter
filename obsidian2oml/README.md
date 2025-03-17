@@ -1,20 +1,20 @@
-# Ecore2Oml
+# Obsidian2Oml
 
-[![Release](https://img.shields.io/github/v/tag/opencaesar/ecore-adapter?label=release)](https://github.com/opencaesar/ecore-adapter/releases/latest)
+[![Release](https://img.shields.io/github/v/tag/opencaesar/obsidian-adapter?label=release)](https://github.com/opencaesar/obsidian-adapter/releases/latest)
 
-A tool that translates [Ecore](https://www.eclipse.org/modeling/emf/) models to [OML](https://opencaesar.github.io/oml) vocabularies
+A tool that translates [Obsidian](https://obsidian.md/) files to [OML](https://opencaesar.github.io/oml) descriptions
 
 ## Run as CLI
 
 MacOS/Linux
 
 ```
-    ./gradlew ecore2oml:run --args="..."
+    ./gradlew obsidian2oml:run --args="..."
 ```
 Windows
 
 ```
-    gradlew.bat ecore2oml:run --args="..."
+    gradlew.bat obsidian2oml:run --args="..."
 ```
 
 Args
@@ -37,10 +37,10 @@ buildscript {
 		mavenCentral()
 	}
 	dependencies {
-		classpath 'io.opencaesar.adapters:ecore2oml-gradle:+'
+		classpath 'io.opencaesar.adapters:obsidian2oml-gradle:+'
 	}
 }
-task ecore2oml(type:io.opencaesar.obsidian2oml.Ecore2OmlTask) {
+task obsidian2oml(type:io.opencaesar.obsidian2oml.Obsidian2OmlTask) {
 	inputFolderPath = file('path/to/input/ecore/folder') // Required
 	outputFolderPath = file('path/to/output/oml/folder') // Required
 	referencedEcorePaths = [ file('path/to/options/file.json') ] // Optional
