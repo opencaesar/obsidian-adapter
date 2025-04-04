@@ -75,7 +75,7 @@ class Oml2Template {
 			s.append(property.getName()+":\n");
 		}
 
-		s.append("---");
+		s.append("---\n");
 		return s.toString();
 	}
 }

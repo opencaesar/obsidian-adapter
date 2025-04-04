@@ -17,13 +17,12 @@ gradlew.bat oml2obsidian:run --args="..."
 Args:
 ```
 --input-catalog-path | -i path/to/input/oml/catalog.xml [Required]
---root-ontology-iri | -r http://... [Optional]
---output-catalog-path | -o path/to/output/owl/catalog.xml [Required]
---output-file-extension | -f [optional, options: owl (default), rdf, xml, rj, ttl, n3, nt, trig, nq, trix, jsonld, fss]
---disjoint-unions | -u [Optional]
---annotations-on-axioms | -a [Optional]
---generateRules | -rl [Optional]
---oml-annotations | -an suppress [Optional, options=generate (default), suppress]
+--input-ontology-iri | -iri http://... [Required]
+--output-vault-path | -o path/to/output/obsidian/vault [Required]
+--output-classes-path | -cls relative/path/to/vault/classes [Required]
+--output-templates-path | -tmp relative/path/to/vault/templates [Required]
+--debug | -d [optional]
+--help | -h [optional]
 ```
 
 ## Run as Gradle Task
@@ -38,11 +37,8 @@ buildscript {
 }
 task oml2obsidian(type:io.opencaesar.oml2obsidian.Oml2ObsidianTask) {
     inputCatalogPath = file('path/to/input/oml/catalog.xml') [Required]
-    rootOntologyIri = 'http://...' [Optional]
-    outputCatalogPath = file('path/to/output/owl/catalog.xml') [Required]
-    outputFileExtension = 'owl' [Optional, default=owl, options: owl, rdf, xml, rj, ttl, n3, nt, trig, nq, trix, jsonld, fss]
-    disjointUnions = true [Optional, false by default]
-    annotationsOnAxioms = true [Optional, false by default]
-    generateRules = true [Optional, false by default] // generates Jena rules files
-    omlAnnotations = 'suppress' [Optional,options='generate' (default), 'suppress'] 
+    inputOntologyIri = 'http://...' [Required]
+    outputVaultPath = file('path/to/output/obsidian/vault') [Required]
+    outputClassesPath = 'metadata/classes' [Required]
+    outputTemplatesPath = 'metadata/templates' [Required]
 }

@@ -51,6 +51,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
+import io.opencaesar.oml.AnnotationProperty;
 import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.Ontology;
@@ -62,6 +63,7 @@ import io.opencaesar.oml.resource.OmlXMIResourceFactory;
 import io.opencaesar.oml.util.OmlConstants;
 import io.opencaesar.oml.util.OmlRead;
 import io.opencaesar.oml.util.OmlResolve;
+import io.opencaesar.oml.util.OmlSearch;
 import io.opencaesar.oml.validate.OmlValidator;
 
 /**
@@ -79,16 +81,16 @@ public class Oml2ObsidianApp {
 
 	@Parameter(
 			names = { "--input-catalog-path", "-i" }, 
-			description = "Path of the input Oml catalog (Required)", 
+			description = "Path of the input Oml catalog file (Required)", 
 			validateWith = InputCatalogPath.class, 
 			required = true)
 	private String inputCatalogPath;
 
 	@Parameter(
-			names= { "--input-vocabulary-bundle-iri", "-voc" }, 
-			description="IRI of input Oml vocabulary bundle (Optional)",
-			required=false)
-	private String inputVocabularyBundleIri = null;
+			names= { "--input-ontology-iri", "-iri" }, 
+			description="IRI of the input Oml ontology (Required)",
+			required=true)
+	private String inputOntologyIri = null;
 
 	@Parameter(
 			names = { "--output-vault-path", "-o" }, 
@@ -98,16 +100,16 @@ public class Oml2ObsidianApp {
 	private String outputVaultPath;
 
 	@Parameter(
-			names = { "--output-fileclass-path", "-cls" }, 
-			description = "Relative path of the output Obsidian fileClass folder (Required)", 
+			names = { "--output-classes-path", "-cls" }, 
+			description = "Relative path of the output Obsidian classes folder (Required)", 
 			required = true)
-	private String outputFileClassPath;
+	private String outputClassesPath;
 
 	@Parameter(
-			names = { "--output-template-path", "-tmp" }, 
-			description = "Relative path of the output Obsidian template folder (Required)", 
+			names = { "--output-templates-path", "-tmp" }, 
+			description = "Relative path of the output Obsidian templates folder (Required)", 
 			required = true)
-	private String outputTemplatePath;
+	private String outputTemplatesPath;
 
 	@Parameter(
 			names = { "--debug", "-d" },
@@ -164,8 +166,8 @@ public class Oml2ObsidianApp {
 		LOGGER.info("                      Oml to Obsidian "+getAppVersion());
 		LOGGER.info("=================================================================");
 		LOGGER.info("Input catalog path= " + inputCatalogPath);
-		LOGGER.info("Input vocabulary bundle Iri= " + inputVocabularyBundleIri);
-		LOGGER.info("Output vault path= " + outputVaultPath);
+		LOGGER.info("Input vocabulary bundle Iri= " + inputOntologyIri);
+		LOGGER.info("Output metadata path= " + outputVaultPath);
 
 		// Setup OML resource set
 		OmlStandaloneSetup.doSetup();
@@ -176,9 +178,9 @@ public class Oml2ObsidianApp {
 		
 		// load the Oml vocabulary bundle
 		Set<String> inputIris = new LinkedHashSet<>(); 
-		if (inputVocabularyBundleIri != null) {
+		if (inputOntologyIri != null) {
 			final URI inputCatalogUri = URI.createFileURI(inputCatalogPath);
-			URI rootUri = resolveRootOntologyIri(inputVocabularyBundleIri, inputCatalogUri);
+			URI rootUri = resolveRootOntologyIri(inputOntologyIri, inputCatalogUri);
 			LOGGER.info(("Reading: " + rootUri));
 			Ontology rootOntology = OmlRead.getOntology(inputResourceSet.getResource(rootUri, true));
 			inputIris.addAll(OmlRead.getImportedOntologyClosure(rootOntology, true).stream().map(i -> i.getIri()).collect(Collectors.toList()));
@@ -200,18 +202,20 @@ public class Oml2ObsidianApp {
 		}
 		
 		// initialize class generator
-		var classGenerator = new Oml2Class(inputResourceSet, outputTemplatePath);
-		var classPath = new File(outputVaultPath+"/"+outputFileClassPath);
+		var classGenerator = new Oml2Class(inputResourceSet, outputTemplatesPath);
+		var classPath = new File(outputVaultPath+"/"+outputClassesPath);
 		classPath.mkdirs();
 	
 		// initialize template generator
 		var templateGenerator = new Oml2Template(inputResourceSet);
-		var templatePath = new File(outputVaultPath+"/"+outputTemplatePath);
+		var templatePath = new File(outputVaultPath+"/"+outputTemplatesPath);
 		templatePath.mkdirs();
 
 		// Initialize scope
 		var uniquePrefixes = new HashSet<String>();
 		var scope = new HashSet<>(inputResourceSet.getResources());
+
+		var ignoreProperty = (AnnotationProperty) OmlRead.getMemberByAbbreviatedIri(inputResourceSet, "obsidian:ignore"); 
 
 		// Convert resources to Obsidian 
 		for (Resource resource : inputResourceSet.getResources()) {
@@ -227,11 +231,12 @@ public class Oml2ObsidianApp {
 				} else {
 					uniquePrefixes.add(vocabulary.getPrefix());
 				}
-				
+								
 				// collect entities defined by the vocabulary
 				var entities = vocabulary.getOwnedStatements().stream()
 						.filter(i -> !i.isRef())
 						.filter(i -> i instanceof Concept || i instanceof RelationEntity)
+						.filter(i -> !OmlSearch.findIsAnnotatedBy(i, ignoreProperty, scope))
 						.map(i -> (Entity)i)
 						.collect(Collectors.toList());
 				
@@ -255,16 +260,18 @@ public class Oml2ObsidianApp {
 				// generate template file for each entity
 				for(var entity : entities) {
 					var path = templatePath.getAbsolutePath()+"/"+entity.getOntology().getPrefix() + "/New " + entity.getName()+".md";
-					LOGGER.info("Writing: " + path);
+					var file = new File(path);
+					LOGGER.info("Writing: " + path + (file.exists()? " (exists)" : ""));
 
 					var content = templateGenerator.generate(entity, scope);
 					
-					var file = new File(path);
 					if (file.exists()) {
 						var markdown = Files.readString(Path.of(path), StandardCharsets.UTF_8);
 						content += extractContentAfterFrontMatter(markdown);
 					} else {
 						file.getParentFile().mkdirs();
+						content += "# Tags\n"
+								+ "`= this.tags`\n";
 					}
 					
 			        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
@@ -291,7 +298,7 @@ public class Oml2ObsidianApp {
 
         // If we find a match, group(1) holds all text after the second '---'
         if (matcher.find()) {
-            return "\n"+matcher.group(1).trim();
+            return matcher.group(1).trim();
         }
 
         // If no match, we assume no valid front matter was found
@@ -357,11 +364,9 @@ public class Oml2ObsidianApp {
 		@Override
 		public void validate(final String name, final String value) throws ParameterException {
 			final File file = new File(value);
-			if (!new File(file.getAbsolutePath()+"/.obsidian").exists()) {
-				throw new ParameterException((("Parameter " + name) + " should be a valid Obsidian vault path"));
-			}
-			if (!new File(file.getAbsolutePath()+"/.obsidian/plugins/metadata-menu").exists()) {
-				throw new ParameterException((("Parameter " + name) + " should be an Obsidian vault with metadata-menu plugin installed"));
+			file.mkdirs();
+			if (!file.exists()) {
+				throw new ParameterException((("Parameter " + name) + " should be a valid folder path"));
 			}
 		}
 	}
