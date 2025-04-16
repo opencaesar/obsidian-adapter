@@ -18,18 +18,19 @@
  */
 package io.opencaesar.oml2obsidian;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 
 import io.opencaesar.oml.Aspect;
 import io.opencaesar.oml.Entity;
+import io.opencaesar.oml.Property;
 import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.SemanticProperty;
 import io.opencaesar.oml.util.OmlRead;
-import io.opencaesar.oml.util.OmlSearch;
 
 class Oml2Template {
 	
@@ -41,38 +42,35 @@ class Oml2Template {
 		this.thingAspect = (Aspect) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2002/07/owl#Thing");
 	}
 	
-	public String generate(Entity entity, Set<Resource> scope) {
+	public String generate(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
 		var s = new StringBuffer();
 		s.append("---\n");
 		s.append("tags:\n");
 		s.append("  - "+entity.getOntology().getPrefix() + "/" + entity.getName()+"\n");
-		
-		// collect all properties in the domain of the entity
-		var properties = OmlSearch.findAllSuperTerms(entity, true, scope).stream()
-			.map(j -> (Entity)j)
-			.flatMap(j -> OmlSearch.findSemanticPropertiesWithDomain(j, scope).stream())
-			.collect(Collectors.toList());
-		
-		// add all properties with no domains or with owl:Thing domain
-		properties.addAll(OmlRead.getOntologies(inputResourceSet).stream()
-			.flatMap(i -> OmlRead.getMembers(i).stream())
-			.filter(i -> i instanceof SemanticProperty)
-			.map(i -> (SemanticProperty)i)
-			.filter(i -> {
-				var domains = OmlSearch.findDomains(i, scope);
-				return domains.isEmpty() || domains.contains(thingAspect);
-			})
-			.toList());
-		
-		// write relation entity source and target
-		if (entity instanceof RelationEntity) {
-			s.append("hasSource:\n");
-			s.append("hasTarget:\n");
+				
+		// write property fields
+        var seen = new HashMap<String, Property>();
+		for (var property: properties) {
+			var name = property.getName();
+			if (!seen.containsKey(name)) {
+				seen.put(name, property);
+				var functional = property.isFunctional();
+				if (functional) {
+					s.append(name+":\n");
+				} else {
+					s.append(name+": []\n");
+				}
+			} else {
+				throw new RuntimeException("Property "+seen.get(name).getAbbreviatedIri()
+						+" has the same name as "+property.getAbbreviatedIri()
+						+" in the context of entity "+entity.getAbbreviatedIri());
+			}
 		}
 
-		// write property fields
-		for (var property: properties) {
-			s.append(property.getName()+":\n");
+		// write relation entity source and target
+		if (entity instanceof RelationEntity) {
+			s.append("hasSource: []\n");
+			s.append("hasTarget: []\n");
 		}
 
 		s.append("---\n");

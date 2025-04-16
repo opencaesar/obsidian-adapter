@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,10 +53,13 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
 import io.opencaesar.oml.AnnotationProperty;
+import io.opencaesar.oml.Aspect;
 import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.Ontology;
+import io.opencaesar.oml.Property;
 import io.opencaesar.oml.RelationEntity;
+import io.opencaesar.oml.SemanticProperty;
 import io.opencaesar.oml.Vocabulary;
 import io.opencaesar.oml.dsl.OmlStandaloneSetup;
 import io.opencaesar.oml.resource.OmlJsonResourceFactory;
@@ -215,7 +219,9 @@ public class Oml2ObsidianApp {
 		var uniquePrefixes = new HashSet<String>();
 		var scope = new HashSet<>(inputResourceSet.getResources());
 
+		// look for some members by iri
 		var ignoreProperty = (AnnotationProperty) OmlRead.getMemberByAbbreviatedIri(inputResourceSet, "obsidian:ignore"); 
+		var thingAspect = (Aspect) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2002/07/owl#Thing");
 
 		// Convert resources to Obsidian 
 		for (Resource resource : inputResourceSet.getResources()) {
@@ -239,13 +245,50 @@ public class Oml2ObsidianApp {
 						.filter(i -> !OmlSearch.findIsAnnotatedBy(i, ignoreProperty, scope))
 						.map(i -> (Entity)i)
 						.collect(Collectors.toList());
-				
+
+				// collect entity's properties
+				var entityToProperties = new HashMap<Entity, List<SemanticProperty>>();
+				for(var entity : entities) {
+					// collect all properties in the domain of the entity
+					var properties = OmlSearch.findAllSuperTerms(entity, true, scope).stream()
+						.map(j -> (Entity)j)
+						.flatMap(j -> OmlSearch.findSemanticPropertiesWithDomain(j, scope).stream())
+						.collect(Collectors.toList());
+					
+					// add all properties with no domains or with owl:Thing domain
+					properties.addAll(OmlRead.getOntologies(inputResourceSet).stream()
+						.flatMap(i -> OmlRead.getMembers(i).stream())
+						.filter(i -> i instanceof SemanticProperty)
+						.map(i -> (SemanticProperty)i)
+						.filter(i -> {
+							var domains = OmlSearch.findDomains(i, scope);
+							return domains.isEmpty() || domains.contains(thingAspect);
+						})
+						.toList());
+					
+					// validate property names
+			        var seen = new HashMap<String, Property>();
+					for (var property: properties) {
+						var name = property.getName();
+						if (!seen.containsKey(name)) {
+							seen.put(name, property);
+						} else {
+							throw new RuntimeException("Property "+seen.get(name).getAbbreviatedIri()
+									+" has the same name as "+property.getAbbreviatedIri()
+									+" in the context of entity "+entity.getAbbreviatedIri());
+						}
+					}
+					
+					// add entity properties
+					entityToProperties.put(entity, properties);
+				}
+
 				// generate class file for each entity
 				for(var entity : entities) {
 					var path = classPath.getAbsolutePath()+"/"+entity.getOntology().getPrefix() + "/" + entity.getName()+".md";
 					LOGGER.info("Writing: " + path);
 
-					var content = classGenerator.generate(entity, scope);
+					var content = classGenerator.generate(entity, entityToProperties.get(entity), scope);
 					
 					var file = new File(path);
 					file.getParentFile().mkdirs();
@@ -263,7 +306,7 @@ public class Oml2ObsidianApp {
 					var file = new File(path);
 					LOGGER.info("Writing: " + path + (file.exists()? " (exists)" : ""));
 
-					var content = templateGenerator.generate(entity, scope);
+					var content = templateGenerator.generate(entity, entityToProperties.get(entity), scope);
 					
 					if (file.exists()) {
 						var markdown = Files.readString(Path.of(path), StandardCharsets.UTF_8);

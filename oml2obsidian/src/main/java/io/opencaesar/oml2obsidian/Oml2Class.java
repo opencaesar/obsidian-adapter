@@ -18,7 +18,10 @@
  */
 package io.opencaesar.oml2obsidian;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,11 +29,11 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 
 import io.opencaesar.oml.AnnotationProperty;
-import io.opencaesar.oml.Aspect;
 import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.IdentifiedElement;
 import io.opencaesar.oml.Literal;
+import io.opencaesar.oml.Property;
 import io.opencaesar.oml.PropertyRangeRestrictionAxiom;
 import io.opencaesar.oml.RangeRestrictionKind;
 import io.opencaesar.oml.Relation;
@@ -45,26 +48,27 @@ class Oml2Class {
 
 	final ResourceSet inputResourceSet;
 	final String templatePath;
-	final Aspect thingAspect;
 	final Scalar booleanScalar;
 	final Scalar dateTimeScalar;
 	final Scalar realScalar;
+	final AnnotationProperty labelProperty;
+	final AnnotationProperty commentProperty;
 	final AnnotationProperty hasIconProperty;
 	
 	public Oml2Class(ResourceSet inputResourceSet, String templatePath) {
 		this.inputResourceSet = inputResourceSet;
 		this.templatePath = templatePath;
-
-		this.thingAspect = (Aspect) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2002/07/owl#Thing");
 		
 		this.booleanScalar = (Scalar) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2001/XMLSchema#boolean");
 		this.dateTimeScalar = (Scalar) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2001/XMLSchema#dateTime");
 		this.realScalar = (Scalar) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2002/07/owl#real");
+		this.labelProperty = (AnnotationProperty) OmlRead.getMemberByAbbreviatedIri(inputResourceSet, "rdfs:label");
+		this.commentProperty = (AnnotationProperty) OmlRead.getMemberByAbbreviatedIri(inputResourceSet, "rdfs:comment");
 	
 		this.hasIconProperty = (AnnotationProperty) OmlRead.getMemberByIri(inputResourceSet, "http://opencaesar.io/obsidian#hasIcon");
 	}
 	
-	public String generate(Entity entity, Set<Resource> scope) {
+	public String generate(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
 		var s = new StringBuffer();
 		s.append("---\n");
 		
@@ -84,24 +88,7 @@ class Oml2Class {
 		s.append("savedViews: []\n");
 		s.append("favoriteView:\n"); 
 		s.append("fieldsOrder: []\n");
-		
-		// collect all properties in the domain of the entity
-		var properties = OmlSearch.findAllSuperTerms(entity, true, scope).stream()
-			.map(j -> (Entity)j)
-			.flatMap(j -> OmlSearch.findSemanticPropertiesWithDomain(j, scope).stream())
-			.collect(Collectors.toList());
-		
-		// add all properties with no domains or with owl:Thing domain
-		properties.addAll(OmlRead.getOntologies(inputResourceSet).stream()
-			.flatMap(i -> OmlRead.getMembers(i).stream())
-			.filter(i -> i instanceof SemanticProperty)
-			.map(i -> (SemanticProperty)i)
-			.filter(i -> {
-				var domains = OmlSearch.findDomains(i, scope);
-				return domains.isEmpty() || domains.contains(thingAspect);
-			})
-			.toList());
-		
+				
 		if (properties.size()>0) {
 			s.append("fields:\n");
 		}
@@ -130,11 +117,11 @@ class Oml2Class {
 					s.append("  type: Input\n");
 				}
 				s.append("  path: \"\"\n");
-				s.append("  id: f"+property.hashCode()+"\n");
+				s.append("  id: f"+property.getName().hashCode()+"\n");
 			} else if (property instanceof Relation) {
 				var targets = getMostSpecificRelationTargets(entity, (Relation)property, scope);
 				if (targets.size()>0) {
-					s.append(generateRelationField(property.getName(), property.hashCode(), property.isFunctional(), targets));
+					s.append(generateRelationField(property.getName(), property.getName().hashCode(), property.isFunctional(), targets));
 				}
 			}
 		}
@@ -145,19 +132,63 @@ class Oml2Class {
 			var re = (RelationEntity)entity;
 			var sources = getMostSpecificTypes(OmlSearch.findSources(re, scope), scope);
 			if (sources.size()>0) {
-				s.append(generateRelationField("hasSource", entity.hashCode()+1, ((RelationEntity) entity).isFunctional(), sources));
+				s.append(generateRelationField("hasSource", entity.getName().hashCode()+1, ((RelationEntity) entity).isFunctional(), sources));
 			}
 			// to property
 			var targets = getMostSpecificTypes(OmlSearch.findTargets(re, scope), scope);
 			if (targets.size()>0) {
-				s.append(generateRelationField("hasTarget", entity.hashCode()+2, ((RelationEntity) entity).isFunctional(), targets));
+				s.append(generateRelationField("hasTarget", entity.getName().hashCode()+2, ((RelationEntity) entity).isFunctional(), targets));
 			}
 		}
 		
-		s.append("---");
+		s.append("---\n");
+		
+		s.append(generateDocs(entity, properties));
+		
 		return s.toString();
 	}
 
+	private String generateDocs(Entity entity, List<SemanticProperty> properties) {
+		var s = new StringBuffer();
+
+		// write property fields
+        var seen = new HashMap<String, Property>();
+		properties.stream().sorted(Comparator.comparing(p -> p.getName())).forEach(property -> {
+			var name = property.getName();
+			if (!seen.containsKey(name)) {
+				seen.put(name, property);
+				if (labelProperty != null) {
+					var label = OmlRead.getAnnotationLiteralValue(property, labelProperty);
+					if (label != null) {
+						s.append("# "+label.getStringValue()+"\n");
+					} else {
+						s.append("# "+name+"\n");
+					}
+				}
+				if (commentProperty != null) {
+					var comment = OmlRead.getAnnotationLiteralValue(property, commentProperty);
+					if (comment != null) {
+						s.append(comment.getStringValue()+"\n\n");
+					} else {
+						s.append("\n\n");
+					}
+				}
+			} else {
+				throw new RuntimeException("Property "+seen.get(name).getAbbreviatedIri()
+						+" has the same name as "+property.getAbbreviatedIri()
+						+" in the context of entity "+entity.getAbbreviatedIri());
+			}
+		});
+
+		// write relation entity source and target
+		if (entity instanceof RelationEntity) {
+			s.append("Sources\n\n");
+			s.append("Targets\n\n");
+		}
+		
+		return s.toString();
+	}
+	
 	private String generateRelationField(String name, int hashCode, boolean functional, Set<Entity> ranges) {
 		StringBuffer s = new StringBuffer();
 		s.append("- name: "+name+"\n");
@@ -166,7 +197,7 @@ class Oml2Class {
 		} else {
 			s.append("  type: MultiFile\n");
 		}
-		var types = ranges.stream().distinct().map(r -> "#"+r.getOntology().getPrefix()+"/"+r.getName()).collect(Collectors.joining(" or "));
+		var types = ranges.stream().distinct().map(r -> "#"+r.getOntology().getPrefix()+"/"+r.getName()).sorted().collect(Collectors.joining(" or "));
 		s.append("  options:\n");
 		s.append("    dvQueryString: \"dv.pages('"+types+" and !\\\""+templatePath+"\\\"')\"\n");
 		s.append("  path: \"\"\n");
