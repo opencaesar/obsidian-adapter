@@ -52,7 +52,7 @@ public abstract class Oml2ObsidianTask extends DefaultTask {
 	 * Creates a new Oml2ObsidianTask object
 	 */
 	public Oml2ObsidianTask() {
-		getOutputs().upToDateWhen(task -> true); // since user could change template files
+		getOutputs().upToDateWhen(task -> true); // since user could change template and class files
 	}
 
     @SuppressWarnings("rawtypes")
@@ -60,6 +60,7 @@ public abstract class Oml2ObsidianTask extends DefaultTask {
     public Task configure(Closure closure) {
         Task task = super.configure(closure);
 		try {
+			// calculate input files
 			final URI inputCatalogUri = URI.createFileURI(getInputCatalogPath().get().getAbsolutePath());
 			Collection<File> inputFiles = new ArrayList<>();
 			inputFiles.addAll(OmlResolve.resolveOmlFileUris(inputCatalogUri).stream()
@@ -90,28 +91,29 @@ public abstract class Oml2ObsidianTask extends DefaultTask {
     public abstract Property<String> getInputOntologyIri();
 
 	/**
-	 * Path of the output Obsidian vault.
+	 * Relative path of the output classes folder
+	 * 
+	 * @return String Property
+	 */
+    @Input
+    public abstract Property<File> getOutputClassesPath();
+
+	/**
+	 * Relative path the output templates folder
+	 * 
+	 * @return String Property
+	 */
+    @Input
+    public abstract Property<File> getOutputTemplatesPath();
+
+	/**
+	 * Relative path of the metadata folder in the vault.
 	 * 
 	 * @return File Property
 	 */
+	@Optional
 	@Input
-    public abstract Property<File> getOutputVaultPath();
-
-	/**
-	 * Relative path of the output Obsidian classes folder
-	 * 
-	 * @return String Property
-	 */
-	@Input
-    public abstract Property<String> getOutputClassesPath();
-
-	/**
-	 * Relative path of the output Obsidian templates folder
-	 * 
-	 * @return String Property
-	 */
-	@Input
-    public abstract Property<String> getOutputTemplatesPath();
+    public abstract Property<File> getMetadataRelativePath();
 
     /**
 	 * The debug flag
@@ -131,7 +133,7 @@ public abstract class Oml2ObsidianTask extends DefaultTask {
 	@InputFiles
 	protected abstract ConfigurableFileCollection getInputFiles();
 
-
+	
     /**
      * The gradle task action logic.
      * 
@@ -148,18 +150,18 @@ public abstract class Oml2ObsidianTask extends DefaultTask {
 		    args.add("-iri");
 		    args.add(getInputOntologyIri().get());
         }
-        if (getOutputVaultPath().isPresent()) {
-		    args.add("-o");
-		    args.add(getOutputVaultPath().get().getAbsolutePath());
-        }
         if (getOutputClassesPath().isPresent()) {
         	args.add("-cls");
-        	args.add(getOutputClassesPath().get());
+        	args.add(getOutputClassesPath().get().getAbsolutePath());
 		}
         if (getOutputTemplatesPath().isPresent()) {
         	args.add("-tmp");
-        	args.add(getOutputTemplatesPath().get());
+        	args.add(getOutputTemplatesPath().get().getAbsolutePath());
 		}
+        if (getMetadataRelativePath().isPresent()) {
+		    args.add("-m");
+		    args.add(getMetadataRelativePath().get().getAbsolutePath());
+        }
 		if (getDebug().isPresent() && getDebug().get()) {
 		    args.add("-d");
 	    }

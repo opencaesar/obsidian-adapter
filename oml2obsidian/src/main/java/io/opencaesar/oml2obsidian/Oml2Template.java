@@ -42,7 +42,7 @@ class Oml2Template {
 		this.thingAspect = (Aspect) OmlRead.getMemberByIri(inputResourceSet, "http://www.w3.org/2002/07/owl#Thing");
 	}
 	
-	public String generate(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
+	public String generateFrontMatter(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
 		var s = new StringBuffer();
 		s.append("---\n");
 		s.append("tags:\n");
@@ -74,6 +74,20 @@ class Oml2Template {
 		}
 
 		s.append("---\n");
+		return s.toString();
+	}
+
+	public String generateBody(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
+		var s = new StringBuffer();
+		s.append("```dataview\n"
+				+ "TABLE WITHOUT ID tags as \"**<big>Tags</big>**\"\n"
+				+ "FROM \"\"\n"
+				+ "WHERE file.path = this.file.path\n"
+				+ "```\n"
+				+ "<%* \n"
+				+ "title = await tp.system.prompt(\"Enter name\", tp.file.title, false);  \n"
+				+ "if (title) await tp.file.rename(title);\n"
+				+ "%>\n");
 		return s.toString();
 	}
 }

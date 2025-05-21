@@ -97,23 +97,23 @@ public class Oml2ObsidianApp {
 	private String inputOntologyIri = null;
 
 	@Parameter(
-			names = { "--output-vault-path", "-o" }, 
-			description = "Path of the output Obsidian vault (Required)", 
-			validateWith = OutputVaultPath.class, 
-			required = true)
-	private String outputVaultPath;
-
-	@Parameter(
 			names = { "--output-classes-path", "-cls" }, 
-			description = "Relative path of the output Obsidian classes folder (Required)", 
-			required = true)
+			description = "Path of the output classes folder (Required, e.g. path/to/classes)", 
+			required = false)
 	private String outputClassesPath;
 
 	@Parameter(
 			names = { "--output-templates-path", "-tmp" }, 
-			description = "Relative path of the output Obsidian templates folder (Required)", 
-			required = true)
+			description = "Path of the output templates folder (Required, e.g. path/to/templates)", 
+			required = false)
 	private String outputTemplatesPath;
+
+	@Parameter(
+			names = { "--output-metadata-path-filter", "-m" }, 
+			description = "Relative path within vault to metadata folder (Optional, default is 'metadata')", 
+			validateWith = OutputVaultPath.class, 
+			required = false)
+	private String metadataRelativePath = "metadata";
 
 	@Parameter(
 			names = { "--debug", "-d" },
@@ -171,7 +171,9 @@ public class Oml2ObsidianApp {
 		LOGGER.info("=================================================================");
 		LOGGER.info("Input catalog path= " + inputCatalogPath);
 		LOGGER.info("Input vocabulary bundle Iri= " + inputOntologyIri);
-		LOGGER.info("Output metadata path= " + outputVaultPath);
+		LOGGER.info("Output classes path= " + outputClassesPath);
+		LOGGER.info("Output templates path= " + outputTemplatesPath);
+		LOGGER.info("Metadata relative path= " + metadataRelativePath);
 
 		// Setup OML resource set
 		OmlStandaloneSetup.doSetup();
@@ -206,13 +208,13 @@ public class Oml2ObsidianApp {
 		}
 		
 		// initialize class generator
-		var classGenerator = new Oml2Class(inputResourceSet, outputTemplatesPath);
-		var classPath = new File(outputVaultPath+"/"+outputClassesPath);
+		var classGenerator = new Oml2Class(inputResourceSet, metadataRelativePath);
+		var classPath = new File(outputClassesPath);
 		classPath.mkdirs();
 	
 		// initialize template generator
 		var templateGenerator = new Oml2Template(inputResourceSet);
-		var templatePath = new File(outputVaultPath+"/"+outputTemplatesPath);
+		var templatePath = new File(outputTemplatesPath);
 		templatePath.mkdirs();
 
 		// Initialize scope
@@ -266,6 +268,11 @@ public class Oml2ObsidianApp {
 						})
 						.toList());
 					
+					// remove ignored properties
+					properties.removeAll(properties.stream()
+							.filter(i -> OmlSearch.findIsAnnotatedBy(i, ignoreProperty, scope))
+							.toList());
+					
 					// validate property names
 			        var seen = new HashMap<String, Property>();
 					for (var property: properties) {
@@ -286,15 +293,22 @@ public class Oml2ObsidianApp {
 				// generate class file for each entity
 				for(var entity : entities) {
 					var path = classPath.getAbsolutePath()+"/"+entity.getOntology().getPrefix() + "/" + entity.getName()+".md";
-					LOGGER.info("Writing: " + path);
-
-					var content = classGenerator.generate(entity, entityToProperties.get(entity), scope);
-					
 					var file = new File(path);
-					file.getParentFile().mkdirs();
-					
+
+					var frontMatter = classGenerator.generateFrontMatter(entity, entityToProperties.get(entity), scope);
+					String body;
+					if (file.exists()) {
+						var markdown = Files.readString(Path.of(path), StandardCharsets.UTF_8);
+						body = extractContentAfterFrontMatter(markdown);
+						LOGGER.info("Writing: " + path + " (updated front matter)");
+					} else {
+						file.getParentFile().mkdirs();
+						body = classGenerator.generateBody(entity, entityToProperties.get(entity), scope);
+						LOGGER.info("Writing: " + path + " (created)");
+					}
+										
 			        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-			            writer.write(content.toString());
+			            writer.write(frontMatter+body);
 			        } catch (IOException e) {
 						throw new RuntimeException("Error writing to file: " + e.getMessage());
 			        }
@@ -304,21 +318,21 @@ public class Oml2ObsidianApp {
 				for(var entity : entities) {
 					var path = templatePath.getAbsolutePath()+"/"+entity.getOntology().getPrefix() + "/New " + entity.getName()+".md";
 					var file = new File(path);
-					LOGGER.info("Writing: " + path + (file.exists()? " (exists)" : ""));
 
-					var content = templateGenerator.generate(entity, entityToProperties.get(entity), scope);
-					
+					var frontMatter = templateGenerator.generateFrontMatter(entity, entityToProperties.get(entity), scope);
+					String body;
 					if (file.exists()) {
 						var markdown = Files.readString(Path.of(path), StandardCharsets.UTF_8);
-						content += extractContentAfterFrontMatter(markdown);
+						body = extractContentAfterFrontMatter(markdown);
+						LOGGER.info("Writing: " + path + " (updated front matter)");
 					} else {
 						file.getParentFile().mkdirs();
-						content += "# Tags\n"
-								+ "`= this.tags`\n";
+						body = templateGenerator.generateBody(entity, entityToProperties.get(entity), scope);
+						LOGGER.info("Writing: " + path + " (created)");
 					}
 					
 			        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-			            writer.write(content.toString());
+			            writer.write(frontMatter+body);
 			        } catch (IOException e) {
 						throw new RuntimeException("Error writing to file: " + e.getMessage());
 			        }

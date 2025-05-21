@@ -29,7 +29,6 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 
 import io.opencaesar.oml.AnnotationProperty;
-import io.opencaesar.oml.Concept;
 import io.opencaesar.oml.Entity;
 import io.opencaesar.oml.IdentifiedElement;
 import io.opencaesar.oml.Literal;
@@ -41,6 +40,7 @@ import io.opencaesar.oml.RelationEntity;
 import io.opencaesar.oml.Scalar;
 import io.opencaesar.oml.ScalarProperty;
 import io.opencaesar.oml.SemanticProperty;
+import io.opencaesar.oml.Type;
 import io.opencaesar.oml.util.OmlRead;
 import io.opencaesar.oml.util.OmlSearch;
 
@@ -68,7 +68,7 @@ class Oml2Class {
 		this.hasIconProperty = (AnnotationProperty) OmlRead.getMemberByIri(inputResourceSet, "http://opencaesar.io/obsidian#hasIcon");
 	}
 	
-	public String generate(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
+	public String generateFrontMatter(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
 		var s = new StringBuffer();
 		s.append("---\n");
 		
@@ -97,7 +97,7 @@ class Oml2Class {
 		for (var property: properties) {
 			if (property instanceof ScalarProperty) {
 				s.append("- name: "+property.getName()+"\n");
-				var range = OmlSearch.findRanges(property, scope).iterator().next();
+				var range = getMostSpecificPropertyRanges(entity, property, scope).iterator().next();
 				if (OmlSearch.findIsSubTermOf(range, booleanScalar, scope)) {
 					s.append("  type: Boolean\n");
 				} else if (OmlSearch.findIsSubTermOf(range, realScalar, scope)) {
@@ -119,9 +119,9 @@ class Oml2Class {
 				s.append("  path: \"\"\n");
 				s.append("  id: f"+property.getName().hashCode()+"\n");
 			} else if (property instanceof Relation) {
-				var targets = getMostSpecificRelationTargets(entity, (Relation)property, scope);
-				if (targets.size()>0) {
-					s.append(generateRelationField(property.getName(), property.getName().hashCode(), property.isFunctional(), targets));
+				var ranges = getMostSpecificPropertyRanges(entity, property, scope);
+				if (ranges.size()>0) {
+					s.append(generateRelationField(property.getName(), property.getName().hashCode(), property.isFunctional(), ranges));
 				}
 			}
 		}
@@ -130,12 +130,12 @@ class Oml2Class {
 		if (entity instanceof RelationEntity) {
 			// from property
 			var re = (RelationEntity)entity;
-			var sources = getMostSpecificTypes(OmlSearch.findSources(re, scope), scope);
+			var sources = getMostSpecificTypes(new HashSet<>(OmlSearch.findSources(re, scope)), scope);
 			if (sources.size()>0) {
 				s.append(generateRelationField("hasSource", entity.getName().hashCode()+1, ((RelationEntity) entity).isFunctional(), sources));
 			}
 			// to property
-			var targets = getMostSpecificTypes(OmlSearch.findTargets(re, scope), scope);
+			var targets = getMostSpecificTypes(new HashSet<>(OmlSearch.findTargets(re, scope)), scope);
 			if (targets.size()>0) {
 				s.append(generateRelationField("hasTarget", entity.getName().hashCode()+2, ((RelationEntity) entity).isFunctional(), targets));
 			}
@@ -143,12 +143,10 @@ class Oml2Class {
 		
 		s.append("---\n");
 		
-		s.append(generateDocs(entity, properties));
-		
 		return s.toString();
 	}
 
-	private String generateDocs(Entity entity, List<SemanticProperty> properties) {
+	public String generateBody(Entity entity, List<SemanticProperty> properties, Set<Resource> scope) {
 		var s = new StringBuffer();
 
 		// write property fields
@@ -182,14 +180,17 @@ class Oml2Class {
 
 		// write relation entity source and target
 		if (entity instanceof RelationEntity) {
-			s.append("Sources\n\n");
-			s.append("Targets\n\n");
+			s.append("# Sources\n");
+			s.append("The sources of this relation\n\n");
+			s.append("# Targets\n");
+			s.append("The targets of this relation\n\n");
+			s.append("\n\n");
 		}
 		
 		return s.toString();
 	}
 	
-	private String generateRelationField(String name, int hashCode, boolean functional, Set<Entity> ranges) {
+	private String generateRelationField(String name, int hashCode, boolean functional, Set<Type> ranges) {
 		StringBuffer s = new StringBuffer();
 		s.append("- name: "+name+"\n");
 		if (functional) {
@@ -205,31 +206,32 @@ class Oml2Class {
 		return s.toString();
 	}
 	
-	private Set<Entity> getMostSpecificRelationTargets(Entity entity, Relation relation, Set<Resource> scope) {
-		var targets = OmlSearch.findAllSuperTerms(entity, true, scope).stream()
+	private Set<Type> getMostSpecificPropertyRanges(Entity entity, SemanticProperty property, Set<Resource> scope) {
+		var ranges = OmlSearch.findAllSuperTerms(entity, true, scope).stream()
 				.map(j -> (Entity)j)
 				.flatMap(j -> OmlSearch.findPropertyRestrictionAxioms(j, scope).stream())
 				.filter(j -> j instanceof PropertyRangeRestrictionAxiom) 
 				.map(j -> (PropertyRangeRestrictionAxiom)j)
-				.filter(j -> j.getProperty() == relation && j.getKind() == RangeRestrictionKind.ALL)
-				.map(j -> (Entity)j.getRange())
+				.filter(j -> j.getProperty() == property)
+				.filter(j -> (j.getKind() == RangeRestrictionKind.ALL) || (j.getKind() == RangeRestrictionKind.SOME && j.getProperty().isFunctional()))
+				.map(j -> j.getRange())
 				.collect(Collectors.toSet());
-		if (targets.size() == 0) {
-			targets = OmlSearch.findRanges(relation, scope).stream()
-				.map(j -> (Entity)j)
+		if (ranges.size() == 0) {
+			ranges = OmlSearch.findRanges(property, scope).stream()
+				.map(j -> j)
 				.collect(Collectors.toSet());
 		}
-		return getMostSpecificTypes(targets, scope);
+		return getMostSpecificTypes(ranges, scope);
 	}
 
-	private Set<Entity> getMostSpecificTypes(Set<Entity> types, Set<Resource> scope) {
+	private Set<Type> getMostSpecificTypes(Set<Type> types, Set<Resource> scope) {
 		final var mostSpecificTypes = new HashSet<>(types);
         for (var r : types) {
         	mostSpecificTypes.removeAll(OmlSearch.findAllSuperTerms(r, false, scope));
         }
 		return mostSpecificTypes.stream().flatMap(j -> OmlSearch.findAllSubTerms(j, true, scope).stream())
-			.filter(j -> j instanceof Concept || j instanceof RelationEntity)
-			.map(j -> (Entity)j)
+			.filter(j -> j instanceof Type)
+			.map(j -> (Type)j)
 			.collect(Collectors.toSet());
 	}
 
